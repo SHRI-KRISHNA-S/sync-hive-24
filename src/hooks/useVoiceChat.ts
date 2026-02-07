@@ -76,38 +76,87 @@ export const useVoiceChat = (channelId: string | null) => {
       });
     }
 
-    // Handle incoming tracks
+  // Handle incoming tracks
     pc.ontrack = (event) => {
-      console.log(`[VoiceChat] Received track from ${targetUserId}`);
+      console.log(`[VoiceChat] Received track from ${targetUserId}`, event.track.kind);
       const [remoteStream] = event.streams;
+      
+      if (!remoteStream) {
+        console.error(`[VoiceChat] No remote stream from ${targetUserId}`);
+        return;
+      }
+
+      // Remove existing audio element if any
+      const existingAudio = document.getElementById(`audio-${targetUserId}`) as HTMLAudioElement;
+      if (existingAudio) {
+        existingAudio.srcObject = null;
+        existingAudio.remove();
+      }
       
       // Create audio element to play remote stream
       const audio = document.createElement('audio');
+      audio.id = `audio-${targetUserId}`;
       audio.srcObject = remoteStream;
       audio.autoplay = true;
-      audio.id = `audio-${targetUserId}`;
+      (audio as any).playsInline = true;
+      audio.volume = 1.0;
       document.body.appendChild(audio);
 
-      // Update participant speaking state based on audio
-      const audioContext = new AudioContext();
-      const source = audioContext.createMediaStreamSource(remoteStream);
-      const analyser = audioContext.createAnalyser();
-      source.connect(analyser);
-
-      const checkSpeaking = () => {
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-        analyser.getByteFrequencyData(dataArray);
-        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-        
-        setParticipants(prev => prev.map(p => 
-          p.odUserId === targetUserId ? { ...p, isSpeaking: average > 10 } : p
-        ));
+      // Force play with error handling for autoplay policy
+      const playAudio = async () => {
+        try {
+          await audio.play();
+          console.log(`[VoiceChat] Audio playing for ${targetUserId}`);
+        } catch (err) {
+          console.error(`[VoiceChat] Audio play failed for ${targetUserId}:`, err);
+          // Retry on user interaction
+          const retryPlay = async () => {
+            try {
+              await audio.play();
+              document.removeEventListener('click', retryPlay);
+            } catch (e) {
+              console.error('[VoiceChat] Retry play failed:', e);
+            }
+          };
+          document.addEventListener('click', retryPlay, { once: true });
+        }
       };
+      playAudio();
 
-      const interval = setInterval(checkSpeaking, 100);
-      peerConnectionsRef.current.get(targetUserId)?.stream?.getTracks().forEach(() => {
-        clearInterval(interval);
-      });
+      // Store the stream reference for cleanup
+      const peerConn = peerConnectionsRef.current.get(targetUserId);
+      if (peerConn) {
+        peerConn.stream = remoteStream;
+      }
+
+      // Update participant speaking state based on audio
+      try {
+        const audioContext = new AudioContext();
+        const source = audioContext.createMediaStreamSource(remoteStream);
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+
+        const checkSpeaking = () => {
+          if (!peerConnectionsRef.current.has(targetUserId)) {
+            clearInterval(speakingInterval);
+            audioContext.close();
+            return;
+          }
+          
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+          analyser.getByteFrequencyData(dataArray);
+          const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+          
+          setParticipants(prev => prev.map(p => 
+            p.odUserId === targetUserId ? { ...p, isSpeaking: average > 15 } : p
+          ));
+        };
+
+        const speakingInterval = setInterval(checkSpeaking, 100);
+      } catch (err) {
+        console.error('[VoiceChat] AudioContext error:', err);
+      }
     };
 
     // Handle ICE candidates
