@@ -1,15 +1,15 @@
- import { useState } from 'react';
- import { motion } from 'framer-motion';
- import { Hash, Plus, ChevronDown, MessageSquare, Settings, Copy, Check } from 'lucide-react';
- import { useTeam } from '@/contexts/TeamContext';
- import { usePresence } from '@/hooks/usePresence';
- import { Button } from '@/components/ui/button';
- import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
- import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
- import { CreateChannelDialog } from './CreateChannelDialog';
- import { useTheme } from '@/hooks/useTheme';
- import { Moon, Sun } from 'lucide-react';
- import { toast } from 'sonner';
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Hash, Plus, ChevronDown, MessageSquare, Copy, Check, Moon, Sun } from 'lucide-react';
+import { useTeam } from '@/contexts/TeamContext';
+import { usePresence } from '@/hooks/usePresence';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { CreateChannelDialog } from './CreateChannelDialog';
+import { VoiceChannel } from './VoiceChannel';
+import { useTheme } from '@/hooks/useTheme';
+import { toast } from 'sonner';
  
  export const ChannelSidebar = () => {
    const { currentTeam, channels, currentChannel, setCurrentChannel, teamMembers } = useTeam();
@@ -141,10 +141,18 @@
                ))}
              </div>
            </CollapsibleContent>
-         </Collapsible>
-       </div>
- 
-       <CreateChannelDialog open={showCreateChannel} onOpenChange={setShowCreateChannel} />
-     </div>
-   );
- };
+        </Collapsible>
+        </div>
+
+        {/* Voice Channel */}
+        {currentChannel && (
+          <VoiceChannel 
+            channelId={currentChannel.id} 
+            channelName={`voice-${currentChannel.name}`} 
+          />
+        )}
+
+        <CreateChannelDialog open={showCreateChannel} onOpenChange={setShowCreateChannel} />
+      </div>
+    );
+  };
