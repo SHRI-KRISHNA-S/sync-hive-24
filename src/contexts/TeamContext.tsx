@@ -100,32 +100,50 @@
      fetchChannels();
    }, [currentTeam]);
  
-   useEffect(() => {
-     const fetchMembers = async () => {
-       if (!currentTeam) {
-         setTeamMembers([]);
-         return;
-       }
-       
-       const { data } = await supabase
-         .from('team_members')
-         .select(`
-           *,
-           profile:profiles!team_members_user_id_fkey(*)
-         `)
-         .eq('team_id', currentTeam.id);
-       
-       if (data) {
-         const membersWithProfiles = data.map(member => ({
-           ...member,
-           profile: member.profile as unknown as Profile,
-         }));
-         setTeamMembers(membersWithProfiles);
-       }
-     };
-     
-     fetchMembers();
-   }, [currentTeam]);
+    useEffect(() => {
+      const fetchMembers = async () => {
+        if (!currentTeam) {
+          setTeamMembers([]);
+          return;
+        }
+        
+        // First get team members
+        const { data: membersData } = await supabase
+          .from('team_members')
+          .select('*')
+          .eq('team_id', currentTeam.id);
+        
+        if (membersData && membersData.length > 0) {
+          // Then get profiles for these members
+          const userIds = membersData.map(m => m.user_id);
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('user_id', userIds);
+          
+          // Map profiles to members
+          const membersWithProfiles = membersData.map(member => ({
+            ...member,
+            profile: profilesData?.find(p => p.user_id === member.user_id) as Profile || {
+              id: '',
+              user_id: member.user_id,
+              username: 'Unknown',
+              display_name: null,
+              avatar_url: null,
+              status: 'offline',
+              last_seen: null,
+              created_at: '',
+              updated_at: '',
+            },
+          }));
+          setTeamMembers(membersWithProfiles);
+        } else {
+          setTeamMembers([]);
+        }
+      };
+      
+      fetchMembers();
+    }, [currentTeam]);
  
    const createTeam = async (name: string, description?: string): Promise<Team | null> => {
      if (!user) return null;
