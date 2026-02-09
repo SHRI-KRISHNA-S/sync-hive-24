@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Video, VideoOff, Mic, MicOff, PhoneOff, Users, Settings, Maximize2, Minimize2 } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, PhoneOff, Monitor, MonitorOff, Settings, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
@@ -19,15 +19,22 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
     isConnected,
     isConnecting,
     isMuted,
+    isVideoOn,
+    isScreenSharing,
     participants,
     error,
     joinVoice,
     leaveVoice,
     toggleMute,
+    toggleVideo,
+    toggleScreenShare,
+    getLocalStream,
   } = useVoiceChat(channelId);
   
-  const [isVideoOn, setIsVideoOn] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
+  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const screenShareRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     // Auto-join when meeting room opens
@@ -35,6 +42,48 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
       joinVoice();
     }
   }, []);
+
+  // Handle local video track
+  useEffect(() => {
+    const handleLocalVideo = (event: CustomEvent) => {
+      if (localVideoRef.current && event.detail.stream) {
+        localVideoRef.current.srcObject = event.detail.stream;
+      }
+    };
+
+    const handleLocalScreenShare = (event: CustomEvent) => {
+      if (screenShareRef.current && event.detail.stream) {
+        screenShareRef.current.srcObject = event.detail.stream;
+      }
+    };
+
+    const handleRemoteVideo = (event: CustomEvent) => {
+      const { targetUserId, stream } = event.detail;
+      setRemoteStreams(prev => new Map(prev).set(targetUserId, stream));
+    };
+
+    window.addEventListener('local-video-track', handleLocalVideo as EventListener);
+    window.addEventListener('local-screen-share', handleLocalScreenShare as EventListener);
+    window.addEventListener('remote-video-track', handleRemoteVideo as EventListener);
+
+    return () => {
+      window.removeEventListener('local-video-track', handleLocalVideo as EventListener);
+      window.removeEventListener('local-screen-share', handleLocalScreenShare as EventListener);
+      window.removeEventListener('remote-video-track', handleRemoteVideo as EventListener);
+    };
+  }, []);
+
+  // Update local video when video is toggled
+  useEffect(() => {
+    if (localVideoRef.current) {
+      const stream = getLocalStream();
+      if (stream && isVideoOn) {
+        localVideoRef.current.srcObject = stream;
+      } else {
+        localVideoRef.current.srcObject = null;
+      }
+    }
+  }, [isVideoOn, getLocalStream]);
 
   const handleLeave = () => {
     leaveVoice();
@@ -51,6 +100,8 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
     }
   };
 
+  const otherParticipants = participants.filter(p => p.odUserId !== profile?.user_id);
+
   return (
     <div className="flex-1 flex flex-col bg-background">
       {/* Header */}
@@ -59,7 +110,7 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
           <div className="w-3 h-3 rounded-full bg-online animate-pulse" />
           <h2 className="font-semibold">{channelName} - Meeting</h2>
           <span className="text-sm text-muted-foreground">
-            {participants.length + 1} participant{participants.length !== 0 ? 's' : ''}
+            {participants.length} participant{participants.length !== 1 ? 's' : ''}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -79,21 +130,60 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
         </div>
       )}
 
+      {/* Connecting State */}
+      {isConnecting && (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Connecting to meeting...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Screen Share View */}
+      {isScreenSharing && (
+        <div className="mx-4 mt-4 aspect-video bg-black rounded-xl overflow-hidden">
+          <video
+            ref={screenShareRef}
+            autoPlay
+            muted
+            playsInline
+            className="w-full h-full object-contain"
+          />
+          <div className="absolute bottom-2 left-2 text-xs bg-black/70 text-white px-2 py-1 rounded">
+            You are sharing your screen
+          </div>
+        </div>
+      )}
+
       {/* Participants Grid */}
-      <div className="flex-1 p-4 overflow-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-fr">
-          {/* Current User */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className={cn(
-              "relative aspect-video bg-muted rounded-xl flex items-center justify-center overflow-hidden",
-              "ring-2 ring-primary/50"
-            )}
-          >
-            <div className="absolute inset-0 flex items-center justify-center">
+      {isConnected && !isConnecting && (
+        <div className="flex-1 p-4 overflow-auto">
+          <div className={cn(
+            "grid gap-4 auto-rows-fr",
+            participants.length <= 1 && "grid-cols-1",
+            participants.length === 2 && "grid-cols-2",
+            participants.length >= 3 && participants.length <= 4 && "grid-cols-2",
+            participants.length >= 5 && "grid-cols-3"
+          )}>
+            {/* Current User */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className={cn(
+                "relative aspect-video bg-muted rounded-xl flex items-center justify-center overflow-hidden",
+                "ring-2 ring-primary/50"
+              )}
+            >
               {isVideoOn ? (
-                <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5" />
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover mirror"
+                  style={{ transform: 'scaleX(-1)' }}
+                />
               ) : (
                 <Avatar className="w-20 h-20">
                   <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
@@ -101,64 +191,90 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
                   </AvatarFallback>
                 </Avatar>
               )}
-            </div>
-            <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-              <span className="text-xs bg-black/50 text-white px-2 py-1 rounded">
-                {profile?.display_name || profile?.username || 'You'} (You)
-              </span>
-              {isMuted && (
-                <span className="bg-destructive text-destructive-foreground p-1 rounded">
-                  <MicOff className="w-3 h-3" />
+              <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
+                <span className="text-xs bg-black/50 text-white px-2 py-1 rounded">
+                  {profile?.display_name || profile?.username || 'You'} (You)
                 </span>
-              )}
-            </div>
-          </motion.div>
-
-          {/* Other Participants */}
-          <AnimatePresence>
-            {participants
-              .filter(p => p.odUserId !== profile?.user_id)
-              .map((participant) => (
-                <motion.div
-                  key={participant.odUserId}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  className={cn(
-                    "relative aspect-video bg-muted rounded-xl flex items-center justify-center overflow-hidden",
-                    participant.isSpeaking && "ring-2 ring-online"
-                  )}
-                >
-                  <Avatar className="w-20 h-20">
-                    <AvatarFallback className="text-2xl bg-secondary">
-                      {participant.username.substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-                    <span className="text-xs bg-black/50 text-white px-2 py-1 rounded truncate">
-                      {participant.username}
+                <div className="flex gap-1">
+                  {isMuted && (
+                    <span className="bg-destructive text-destructive-foreground p-1 rounded">
+                      <MicOff className="w-3 h-3" />
                     </span>
-                    {participant.isMuted && (
-                      <span className="bg-destructive text-destructive-foreground p-1 rounded">
-                        <MicOff className="w-3 h-3" />
-                      </span>
-                    )}
-                  </div>
-                  {participant.isSpeaking && (
-                    <motion.div
-                      className="absolute inset-0 rounded-xl border-2 border-online"
-                      animate={{ opacity: [0.5, 1, 0.5] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                    />
                   )}
-                </motion.div>
-              ))}
-          </AnimatePresence>
+                  {!isVideoOn && (
+                    <span className="bg-muted-foreground/50 text-white p-1 rounded">
+                      <VideoOff className="w-3 h-3" />
+                    </span>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Other Participants */}
+            <AnimatePresence>
+              {otherParticipants.map((participant) => {
+                const remoteStream = remoteStreams.get(participant.odUserId);
+                const hasVideo = participant.isVideoOn && remoteStream?.getVideoTracks().length;
+
+                return (
+                  <motion.div
+                    key={participant.odUserId}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    className={cn(
+                      "relative aspect-video bg-muted rounded-xl flex items-center justify-center overflow-hidden",
+                      participant.isSpeaking && "ring-2 ring-online"
+                    )}
+                  >
+                    {hasVideo ? (
+                      <RemoteVideo userId={participant.odUserId} stream={remoteStream!} />
+                    ) : (
+                      <Avatar className="w-20 h-20">
+                        <AvatarFallback className="text-2xl bg-secondary">
+                          {participant.username.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
+                    <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
+                      <span className="text-xs bg-black/50 text-white px-2 py-1 rounded truncate">
+                        {participant.username}
+                      </span>
+                      <div className="flex gap-1">
+                        {participant.isMuted && (
+                          <span className="bg-destructive text-destructive-foreground p-1 rounded">
+                            <MicOff className="w-3 h-3" />
+                          </span>
+                        )}
+                        {!participant.isVideoOn && (
+                          <span className="bg-muted-foreground/50 text-white p-1 rounded">
+                            <VideoOff className="w-3 h-3" />
+                          </span>
+                        )}
+                        {participant.isScreenSharing && (
+                          <span className="bg-primary text-primary-foreground p-1 rounded">
+                            <Monitor className="w-3 h-3" />
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {participant.isSpeaking && (
+                      <motion.div
+                        className="absolute inset-0 rounded-xl border-2 border-online pointer-events-none"
+                        animate={{ opacity: [0.5, 1, 0.5] }}
+                        transition={{ duration: 1, repeat: Infinity }}
+                      />
+                    )}
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Controls */}
-      <div className="h-20 px-4 flex items-center justify-center gap-4 border-t border-border bg-card">
+      <div className="h-20 px-4 flex items-center justify-center gap-3 border-t border-border bg-card">
         <Button
           variant={isMuted ? "destructive" : "secondary"}
           size="lg"
@@ -173,11 +289,20 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
           variant={isVideoOn ? "secondary" : "outline"}
           size="lg"
           className="rounded-full w-14 h-14"
-          onClick={() => setIsVideoOn(!isVideoOn)}
-          disabled
-          title="Video coming soon"
+          onClick={toggleVideo}
+          disabled={!isConnected}
         >
           {isVideoOn ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
+        </Button>
+
+        <Button
+          variant={isScreenSharing ? "secondary" : "outline"}
+          size="lg"
+          className="rounded-full w-14 h-14"
+          onClick={toggleScreenShare}
+          disabled={!isConnected}
+        >
+          {isScreenSharing ? <Monitor className="w-6 h-6" /> : <MonitorOff className="w-6 h-6" />}
         </Button>
         
         <Button
@@ -193,3 +318,22 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
   );
 };
 
+// Remote video component
+const RemoteVideo = ({ userId, stream }: { userId: string; stream: MediaStream }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
+  return (
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      className="w-full h-full object-cover"
+    />
+  );
+};
