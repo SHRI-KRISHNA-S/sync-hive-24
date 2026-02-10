@@ -13,15 +13,6 @@ interface VoiceParticipant {
   isScreenSharing: boolean;
 }
 
-interface PeerConnection {
-  odId: string;
-  connection: RTCPeerConnection;
-  stream?: MediaStream;
-  makingOffer: boolean;
-  ignoreOffer: boolean;
-  isSettingRemoteAnswerPending: boolean;
-}
-
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -45,39 +36,36 @@ export const useVoiceChat = (channelId: string | null) => {
 
   const localStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
-  const localVideoRef = useRef<HTMLVideoElement | null>(null);
-  const peerConnectionsRef = useRef<Map<string, PeerConnection>>(new Map());
+  const peerConnectionsRef = useRef<Map<string, { connection: RTCPeerConnection; makingOffer: boolean; ignoreOffer: boolean }>>(new Map());
   const realtimeChannelRef = useRef<RealtimeChannel | null>(null);
   const pendingCandidatesRef = useRef<Map<string, RTCIceCandidate[]>>(new Map());
+  const userRef = useRef(user);
+  const profileRef = useRef(profile);
+  const isMutedRef = useRef(isMuted);
+  const isVideoOnRef = useRef(isVideoOn);
+  const isScreenSharingRef = useRef(isScreenSharing);
 
-  // Cleanup function
+  // Keep refs in sync
+  useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => { profileRef.current = profile; }, [profile]);
+  useEffect(() => { isMutedRef.current = isMuted; }, [isMuted]);
+  useEffect(() => { isVideoOnRef.current = isVideoOn; }, [isVideoOn]);
+  useEffect(() => { isScreenSharingRef.current = isScreenSharing; }, [isScreenSharing]);
+
   const cleanup = useCallback(() => {
     console.log('[VoiceChat] Cleaning up...');
-    
-    // Stop local stream
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
-      localStreamRef.current = null;
-    }
+    localStreamRef.current?.getTracks().forEach(t => t.stop());
+    localStreamRef.current = null;
+    screenStreamRef.current?.getTracks().forEach(t => t.stop());
+    screenStreamRef.current = null;
 
-    // Stop screen share stream
-    if (screenStreamRef.current) {
-      screenStreamRef.current.getTracks().forEach(track => track.stop());
-      screenStreamRef.current = null;
-    }
-
-    // Close all peer connections and remove audio/video elements
-    peerConnectionsRef.current.forEach(({ connection }, odId) => {
+    peerConnectionsRef.current.forEach(({ connection }, id) => {
       connection.close();
-      const audioEl = document.getElementById(`audio-${odId}`);
-      audioEl?.remove();
-      const videoEl = document.getElementById(`video-${odId}`);
-      videoEl?.remove();
+      document.getElementById(`audio-${id}`)?.remove();
     });
     peerConnectionsRef.current.clear();
     pendingCandidatesRef.current.clear();
 
-    // Unsubscribe from realtime channel
     if (realtimeChannelRef.current) {
       supabase.removeChannel(realtimeChannelRef.current);
       realtimeChannelRef.current = null;
@@ -89,13 +77,11 @@ export const useVoiceChat = (channelId: string | null) => {
     setIsScreenSharing(false);
   }, []);
 
-  // Add pending ICE candidates
   const addPendingCandidates = async (targetUserId: string, pc: RTCPeerConnection) => {
     const pending = pendingCandidatesRef.current.get(targetUserId) || [];
     for (const candidate of pending) {
       try {
         await pc.addIceCandidate(candidate);
-        console.log(`[VoiceChat] Added pending ICE candidate for ${targetUserId}`);
       } catch (err) {
         console.error('[VoiceChat] Error adding pending ICE candidate:', err);
       }
@@ -103,45 +89,42 @@ export const useVoiceChat = (channelId: string | null) => {
     pendingCandidatesRef.current.delete(targetUserId);
   };
 
-  // Create peer connection for a user - using "perfect negotiation" pattern
-  const createPeerConnection = useCallback((targetUserId: string, polite: boolean): RTCPeerConnection => {
-    console.log(`[VoiceChat] Creating peer connection for ${targetUserId}, polite=${polite}`);
-    
-    // Close existing connection if any
+  const createPeerConnection = (targetUserId: string): RTCPeerConnection => {
+    console.log(`[VoiceChat] Creating peer connection for ${targetUserId}`);
+
     const existing = peerConnectionsRef.current.get(targetUserId);
     if (existing) {
       existing.connection.close();
     }
 
     const pc = new RTCPeerConnection(ICE_SERVERS);
-    const peerState: PeerConnection = {
-      odId: targetUserId,
-      connection: pc,
-      makingOffer: false,
-      ignoreOffer: false,
-      isSettingRemoteAnswerPending: false,
-    };
+    const peerState = { connection: pc, makingOffer: false, ignoreOffer: false };
     peerConnectionsRef.current.set(targetUserId, peerState);
 
-    // Add local tracks to peer connection
+    // Add ALL local tracks (audio + video + screen share)
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => {
-        console.log(`[VoiceChat] Adding ${track.kind} track to peer connection`);
+        console.log(`[VoiceChat] Adding local ${track.kind} track to PC for ${targetUserId}`);
         pc.addTrack(track, localStreamRef.current!);
       });
     }
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach(track => {
+        console.log(`[VoiceChat] Adding screen ${track.kind} track to PC for ${targetUserId}`);
+        pc.addTrack(track, screenStreamRef.current!);
+      });
+    }
 
-    // Handle negotiation needed - perfect negotiation pattern
+    // Perfect negotiation: onnegotiationneeded
     pc.onnegotiationneeded = async () => {
       try {
         peerState.makingOffer = true;
         await pc.setLocalDescription();
-        
         realtimeChannelRef.current?.send({
           type: 'broadcast',
           event: 'signaling',
           payload: {
-            from: user?.id,
+            from: userRef.current?.id,
             to: targetUserId,
             type: 'offer',
             sdp: pc.localDescription?.sdp,
@@ -157,29 +140,24 @@ export const useVoiceChat = (channelId: string | null) => {
 
     // Handle incoming tracks
     pc.ontrack = (event) => {
-      console.log(`[VoiceChat] Received ${event.track.kind} track from ${targetUserId}`);
-      const [remoteStream] = event.streams;
-      
-      if (!remoteStream) {
-        console.error(`[VoiceChat] No remote stream from ${targetUserId}`);
-        return;
-      }
+      console.log(`[VoiceChat] Received ${event.track.kind} track from ${targetUserId}, streams: ${event.streams.length}`);
 
-      peerState.stream = remoteStream;
+      // Use the first stream, or create one
+      const remoteStream = event.streams[0] || new MediaStream([event.track]);
 
       if (event.track.kind === 'audio') {
-        // Handle audio track
         let audioEl = document.getElementById(`audio-${targetUserId}`) as HTMLAudioElement;
         if (!audioEl) {
           audioEl = document.createElement('audio');
           audioEl.id = `audio-${targetUserId}`;
           audioEl.autoplay = true;
           (audioEl as any).playsInline = true;
+          audioEl.volume = 1.0;
           document.body.appendChild(audioEl);
+          console.log(`[VoiceChat] Created audio element for ${targetUserId}`);
         }
+        // Always set srcObject to the stream containing this track
         audioEl.srcObject = remoteStream;
-        
-        // Force play with error handling
         audioEl.play().catch(err => {
           console.warn(`[VoiceChat] Audio autoplay blocked for ${targetUserId}:`, err);
           const retryPlay = () => {
@@ -189,7 +167,7 @@ export const useVoiceChat = (channelId: string | null) => {
           document.addEventListener('click', retryPlay, { once: true });
         });
 
-        // Speaking detection with AudioContext
+        // Speaking detection
         try {
           const audioContext = new AudioContext();
           const source = audioContext.createMediaStreamSource(remoteStream);
@@ -197,44 +175,38 @@ export const useVoiceChat = (channelId: string | null) => {
           analyser.fftSize = 256;
           source.connect(analyser);
 
-          const checkSpeaking = () => {
+          const speakingInterval = setInterval(() => {
             if (!peerConnectionsRef.current.has(targetUserId)) {
               clearInterval(speakingInterval);
               audioContext.close();
               return;
             }
-            
             const dataArray = new Uint8Array(analyser.frequencyBinCount);
             analyser.getByteFrequencyData(dataArray);
             const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-            
-            setParticipants(prev => prev.map(p => 
+            setParticipants(prev => prev.map(p =>
               p.odUserId === targetUserId ? { ...p, isSpeaking: average > 15 } : p
             ));
-          };
-
-          const speakingInterval = setInterval(checkSpeaking, 100);
+          }, 200);
         } catch (err) {
           console.error('[VoiceChat] AudioContext error:', err);
         }
       }
 
       if (event.track.kind === 'video') {
-        // Dispatch custom event for video track - components can listen to this
         window.dispatchEvent(new CustomEvent('remote-video-track', {
           detail: { targetUserId, stream: remoteStream }
         }));
       }
     };
 
-    // Handle ICE candidates
     pc.onicecandidate = (event) => {
       if (event.candidate && realtimeChannelRef.current) {
         realtimeChannelRef.current.send({
           type: 'broadcast',
           event: 'ice-candidate',
           payload: {
-            from: user?.id,
+            from: userRef.current?.id,
             to: targetUserId,
             candidate: event.candidate.toJSON(),
           },
@@ -245,6 +217,7 @@ export const useVoiceChat = (channelId: string | null) => {
     pc.oniceconnectionstatechange = () => {
       console.log(`[VoiceChat] ICE state for ${targetUserId}: ${pc.iceConnectionState}`);
       if (pc.iceConnectionState === 'failed') {
+        console.log(`[VoiceChat] Restarting ICE for ${targetUserId}`);
         pc.restartIce();
       }
     };
@@ -254,88 +227,86 @@ export const useVoiceChat = (channelId: string | null) => {
     };
 
     return pc;
-  }, [user?.id]);
+  };
 
-  // Handle incoming signaling messages - perfect negotiation pattern
-  const handleSignalingMessage = useCallback(async (payload: any) => {
+  // Handle signaling - perfect negotiation
+  const handleSignaling = (payload: any) => {
     const { from, to, type, sdp } = payload;
-    
-    if (to !== user?.id) return;
-    
+    if (to !== userRef.current?.id) return;
+
     console.log(`[VoiceChat] Received ${type} from ${from}`);
 
     let peerState = peerConnectionsRef.current.get(from);
-    
+
     if (!peerState) {
-      // We received a message from someone we don't have a connection with
-      // This means they're the offerer, so we're polite (we accept their offer)
-      const pc = createPeerConnection(from, true);
+      // Create a new connection for this unknown peer
+      createPeerConnection(from);
       peerState = peerConnectionsRef.current.get(from)!;
     }
 
     const pc = peerState.connection;
-    const polite = user!.id > from; // Higher ID is polite
+    const polite = userRef.current!.id > from;
 
-    if (type === 'offer') {
-      const offerCollision = peerState.makingOffer || pc.signalingState !== 'stable';
-      
-      peerState.ignoreOffer = !polite && offerCollision;
-      if (peerState.ignoreOffer) {
-        console.log(`[VoiceChat] Ignoring colliding offer from ${from}`);
-        return;
+    (async () => {
+      try {
+        if (type === 'offer') {
+          const offerCollision = peerState!.makingOffer || pc.signalingState !== 'stable';
+          peerState!.ignoreOffer = !polite && offerCollision;
+
+          if (peerState!.ignoreOffer) {
+            console.log(`[VoiceChat] Ignoring colliding offer from ${from}`);
+            return;
+          }
+
+          await pc.setRemoteDescription({ type: 'offer', sdp });
+          await addPendingCandidates(from, pc);
+          await pc.setLocalDescription();
+
+          realtimeChannelRef.current?.send({
+            type: 'broadcast',
+            event: 'signaling',
+            payload: {
+              from: userRef.current?.id,
+              to: from,
+              type: 'answer',
+              sdp: pc.localDescription?.sdp,
+            },
+          });
+          console.log(`[VoiceChat] Sent answer to ${from}`);
+        } else if (type === 'answer') {
+          if (pc.signalingState === 'have-local-offer') {
+            await pc.setRemoteDescription({ type: 'answer', sdp });
+            await addPendingCandidates(from, pc);
+            console.log(`[VoiceChat] Set remote answer from ${from}`);
+          } else {
+            console.warn(`[VoiceChat] Ignoring answer in state ${pc.signalingState}`);
+          }
+        }
+      } catch (err) {
+        console.error('[VoiceChat] Signaling error:', err);
       }
+    })();
+  };
 
-      await pc.setRemoteDescription({ type: 'offer', sdp });
-      await addPendingCandidates(from, pc);
-      
-      await pc.setLocalDescription();
-      
-      realtimeChannelRef.current?.send({
-        type: 'broadcast',
-        event: 'signaling',
-        payload: {
-          from: user?.id,
-          to: from,
-          type: 'answer',
-          sdp: pc.localDescription?.sdp,
-        },
-      });
-      console.log(`[VoiceChat] Sent answer to ${from}`);
-      
-    } else if (type === 'answer') {
-      if (pc.signalingState === 'have-local-offer') {
-        await pc.setRemoteDescription({ type: 'answer', sdp });
-        await addPendingCandidates(from, pc);
-        console.log(`[VoiceChat] Set remote answer from ${from}`);
-      }
-    }
-  }, [user?.id, createPeerConnection]);
-
-  const handleIceCandidate = useCallback(async (payload: any) => {
+  const handleIceCandidate = (payload: any) => {
     const { from, to, candidate } = payload;
-    
-    if (to !== user?.id || !candidate) return;
-    
+    if (to !== userRef.current?.id || !candidate) return;
+
     const peerState = peerConnectionsRef.current.get(from);
-    
+
     if (!peerState || !peerState.connection.remoteDescription) {
-      // Buffer the candidate until we have a remote description
       const pending = pendingCandidatesRef.current.get(from) || [];
       pending.push(new RTCIceCandidate(candidate));
       pendingCandidatesRef.current.set(from, pending);
-      console.log(`[VoiceChat] Buffered ICE candidate from ${from}`);
       return;
     }
 
-    try {
-      await peerState.connection.addIceCandidate(new RTCIceCandidate(candidate));
-      console.log(`[VoiceChat] Added ICE candidate from ${from}`);
-    } catch (err) {
+    peerState.connection.addIceCandidate(new RTCIceCandidate(candidate)).catch(err => {
       if (!peerState.ignoreOffer) {
         console.error('[VoiceChat] Error adding ICE candidate:', err);
       }
-    }
-  }, [user?.id]);
+    });
+  };
 
   // Join voice channel
   const joinVoice = useCallback(async () => {
@@ -346,18 +317,11 @@ export const useVoiceChat = (channelId: string | null) => {
 
     try {
       console.log('[VoiceChat] Requesting microphone access...');
-      
-      // Get local audio stream
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        } 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
       localStreamRef.current = stream;
 
-      // Set up realtime channel for signaling
       const rtChannel = supabase.channel(`voice:${channelId}`, {
         config: { presence: { key: user.id } },
       });
@@ -366,7 +330,6 @@ export const useVoiceChat = (channelId: string | null) => {
         .on('presence', { event: 'sync' }, () => {
           const state = rtChannel.presenceState();
           const newParticipants: VoiceParticipant[] = [];
-          
           Object.entries(state).forEach(([key, presences]) => {
             const presence = (presences as any[])[0];
             if (presence) {
@@ -381,41 +344,34 @@ export const useVoiceChat = (channelId: string | null) => {
               });
             }
           });
-          
           setParticipants(newParticipants);
         })
-        .on('presence', { event: 'join' }, async ({ key, newPresences }) => {
-          console.log(`[VoiceChat] User joined: ${key}`);
+        .on('presence', { event: 'join' }, ({ key, newPresences }) => {
           const presence = (newPresences as any[])[0];
-          
-          if (presence.user_id !== user.id) {
-            // Determine politeness: higher ID is polite
-            const polite = user.id > presence.user_id;
-            
-            // Only the impolite peer initiates
-            if (!polite) {
-              createPeerConnection(presence.user_id, false);
-            }
+          if (!presence || presence.user_id === userRef.current?.id) return;
+
+          console.log(`[VoiceChat] Peer joined: ${presence.user_id}`);
+
+          // BOTH peers create a connection. The "impolite" peer (lower ID) will
+          // have its offer win in case of collision via perfect negotiation.
+          if (!peerConnectionsRef.current.has(presence.user_id)) {
+            createPeerConnection(presence.user_id);
           }
         })
         .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-          console.log(`[VoiceChat] User left: ${key}`);
           const presence = (leftPresences as any[])?.[0];
           const odId = presence?.user_id || key;
-          
-          // Clean up peer connection
+          console.log(`[VoiceChat] Peer left: ${odId}`);
+
           const peerConn = peerConnectionsRef.current.get(odId);
           if (peerConn) {
             peerConn.connection.close();
             peerConnectionsRef.current.delete(odId);
           }
-          
-          // Remove audio/video elements
           document.getElementById(`audio-${odId}`)?.remove();
-          document.getElementById(`video-${odId}`)?.remove();
         })
         .on('broadcast', { event: 'signaling' }, ({ payload }) => {
-          handleSignalingMessage(payload);
+          handleSignaling(payload);
         })
         .on('broadcast', { event: 'ice-candidate' }, ({ payload }) => {
           handleIceCandidate(payload);
@@ -430,7 +386,6 @@ export const useVoiceChat = (channelId: string | null) => {
               isScreenSharing: false,
               joined_at: new Date().toISOString(),
             });
-            
             setIsConnected(true);
             setIsConnecting(false);
             console.log('[VoiceChat] Connected to voice channel');
@@ -444,150 +399,133 @@ export const useVoiceChat = (channelId: string | null) => {
       setIsConnecting(false);
       cleanup();
     }
-  }, [channelId, user, profile, isConnecting, createPeerConnection, handleSignalingMessage, handleIceCandidate, cleanup]);
+  }, [channelId, user, profile, isConnecting, cleanup]);
 
-  // Leave voice channel
-  const leaveVoice = useCallback(async () => {
+  const leaveVoice = useCallback(() => {
     console.log('[VoiceChat] Leaving voice channel...');
     cleanup();
   }, [cleanup]);
 
-  // Toggle mute
+  const updatePresence = () => {
+    realtimeChannelRef.current?.track({
+      user_id: userRef.current?.id,
+      username: profileRef.current?.username || 'Unknown',
+      isMuted: isMutedRef.current,
+      isVideoOn: isVideoOnRef.current,
+      isScreenSharing: isScreenSharingRef.current,
+      joined_at: new Date().toISOString(),
+    });
+  };
+
   const toggleMute = useCallback(() => {
     if (localStreamRef.current) {
       const audioTrack = localStreamRef.current.getAudioTracks()[0];
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
         setIsMuted(!audioTrack.enabled);
-        
-        // Update presence
-        realtimeChannelRef.current?.track({
-          user_id: user?.id,
-          username: profile?.username || 'Unknown',
-          isMuted: !audioTrack.enabled,
-          isVideoOn,
-          isScreenSharing,
-          joined_at: new Date().toISOString(),
-        });
+        isMutedRef.current = !audioTrack.enabled;
+        updatePresence();
       }
     }
-  }, [user?.id, profile?.username, isVideoOn, isScreenSharing]);
+  }, []);
 
-  // Toggle video
   const toggleVideo = useCallback(async () => {
     if (!localStreamRef.current) return;
 
-    if (isVideoOn) {
-      // Turn off video
+    if (isVideoOnRef.current) {
+      // Turn off video - remove from local stream and all peer connections
       const videoTrack = localStreamRef.current.getVideoTracks()[0];
       if (videoTrack) {
         videoTrack.stop();
         localStreamRef.current.removeTrack(videoTrack);
-        
-        // Remove track from all peer connections
         peerConnectionsRef.current.forEach(({ connection }) => {
-          const sender = connection.getSenders().find(s => s.track?.kind === 'video');
-          if (sender) {
-            connection.removeTrack(sender);
-          }
+          const sender = connection.getSenders().find(s => s.track === videoTrack);
+          if (sender) connection.removeTrack(sender);
         });
       }
       setIsVideoOn(false);
+      isVideoOnRef.current = false;
     } else {
       try {
-        // Turn on video
         const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
         const videoTrack = videoStream.getVideoTracks()[0];
         localStreamRef.current.addTrack(videoTrack);
-        
-        // Add track to all peer connections
+
+        // Add to all existing peer connections
         peerConnectionsRef.current.forEach(({ connection }) => {
           connection.addTrack(videoTrack, localStreamRef.current!);
         });
-        
-        // Dispatch event for local video
+
         window.dispatchEvent(new CustomEvent('local-video-track', {
           detail: { stream: localStreamRef.current }
         }));
-        
+
         setIsVideoOn(true);
+        isVideoOnRef.current = true;
       } catch (err) {
         console.error('[VoiceChat] Error enabling video:', err);
         setError('Failed to enable video');
+        return;
       }
     }
+    updatePresence();
+  }, []);
 
-    // Update presence
-    realtimeChannelRef.current?.track({
-      user_id: user?.id,
-      username: profile?.username || 'Unknown',
-      isMuted,
-      isVideoOn: !isVideoOn,
-      isScreenSharing,
-      joined_at: new Date().toISOString(),
-    });
-  }, [user?.id, profile?.username, isMuted, isVideoOn, isScreenSharing]);
-
-  // Toggle screen share
   const toggleScreenShare = useCallback(async () => {
-    if (isScreenSharing) {
-      // Stop screen share
+    if (isScreenSharingRef.current) {
+      // Stop screen share - remove tracks from all peer connections
       if (screenStreamRef.current) {
-        screenStreamRef.current.getTracks().forEach(track => track.stop());
+        const screenTrack = screenStreamRef.current.getVideoTracks()[0];
+        peerConnectionsRef.current.forEach(({ connection }) => {
+          const sender = connection.getSenders().find(s => s.track === screenTrack);
+          if (sender) connection.removeTrack(sender);
+        });
+        screenStreamRef.current.getTracks().forEach(t => t.stop());
         screenStreamRef.current = null;
       }
       setIsScreenSharing(false);
+      isScreenSharingRef.current = false;
     } else {
       try {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true,
-        });
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
         screenStreamRef.current = screenStream;
-        
-        // Add screen share track to all peer connections
+
         const videoTrack = screenStream.getVideoTracks()[0];
         peerConnectionsRef.current.forEach(({ connection }) => {
           connection.addTrack(videoTrack, screenStream);
         });
-        
-        // Handle when user stops sharing via browser UI
+
         videoTrack.onended = () => {
-          setIsScreenSharing(false);
+          // User stopped sharing via browser UI
+          peerConnectionsRef.current.forEach(({ connection }) => {
+            const sender = connection.getSenders().find(s => s.track === videoTrack);
+            if (sender) connection.removeTrack(sender);
+          });
           screenStreamRef.current = null;
+          setIsScreenSharing(false);
+          isScreenSharingRef.current = false;
+          updatePresence();
         };
-        
-        // Dispatch event for local screen share
+
         window.dispatchEvent(new CustomEvent('local-screen-share', {
           detail: { stream: screenStream }
         }));
-        
+
         setIsScreenSharing(true);
+        isScreenSharingRef.current = true;
       } catch (err) {
         console.error('[VoiceChat] Error sharing screen:', err);
         setError('Failed to share screen');
+        return;
       }
     }
+    updatePresence();
+  }, []);
 
-    // Update presence
-    realtimeChannelRef.current?.track({
-      user_id: user?.id,
-      username: profile?.username || 'Unknown',
-      isMuted,
-      isVideoOn,
-      isScreenSharing: !isScreenSharing,
-      joined_at: new Date().toISOString(),
-    });
-  }, [user?.id, profile?.username, isMuted, isVideoOn, isScreenSharing]);
-
-  // Get local stream for video preview
   const getLocalStream = useCallback(() => localStreamRef.current, []);
 
-  // Cleanup on unmount
   useEffect(() => {
-    return () => {
-      cleanup();
-    };
+    return () => { cleanup(); };
   }, [cleanup]);
 
   return {
