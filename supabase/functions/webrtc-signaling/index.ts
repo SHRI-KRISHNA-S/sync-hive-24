@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     console.log(`[Signaling] Action: ${action}, Channel: ${channelId}, User: ${user.id}`)
 
     // Verify the user is a member of the team that owns this channel
-    const actionsRequiringAuth = ['join', 'offer', 'answer', 'ice-candidate']
+    const actionsRequiringAuth = ['join', 'leave', 'offer', 'answer', 'ice-candidate']
     if (actionsRequiringAuth.includes(action) && channelId) {
       const { data: channel } = await supabaseClient
         .from('channels')
