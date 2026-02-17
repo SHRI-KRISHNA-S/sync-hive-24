@@ -38,6 +38,37 @@ Deno.serve(async (req) => {
     const { action, channelId, sdp, candidate, targetUserId } = await req.json()
     console.log(`[Signaling] Action: ${action}, Channel: ${channelId}, User: ${user.id}`)
 
+    // Verify the user is a member of the team that owns this channel
+    const actionsRequiringAuth = ['join', 'offer', 'answer', 'ice-candidate']
+    if (actionsRequiringAuth.includes(action) && channelId) {
+      const { data: channel } = await supabaseClient
+        .from('channels')
+        .select('team_id')
+        .eq('id', channelId)
+        .single()
+
+      if (!channel) {
+        return new Response(JSON.stringify({ error: 'Channel not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      const { data: membership } = await supabaseClient
+        .from('team_members')
+        .select('role')
+        .eq('team_id', channel.team_id)
+        .eq('user_id', user.id)
+        .single()
+
+      if (!membership) {
+        return new Response(JSON.stringify({ error: 'Not authorized for this channel' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
     switch (action) {
       case 'join': {
         // Initialize channel if not exists
