@@ -145,9 +145,10 @@
       fetchMembers();
     }, [currentTeam]);
  
-   const createTeam = async (name: string, description?: string): Promise<Team | null> => {
-     if (!user) return null;
-     
+    const createTeam = async (name: string, description?: string): Promise<Team | null> => {
+      if (!user) return null;
+      if (name.length > 100) return null;
+      
      const { data: teamData, error: teamError } = await supabase
        .from('teams')
        .insert({
@@ -212,9 +213,10 @@
      return true;
    };
  
-   const createChannel = async (name: string, description?: string): Promise<Channel | null> => {
-     if (!user || !currentTeam) return null;
-     
+    const createChannel = async (name: string, description?: string): Promise<Channel | null> => {
+      if (!user || !currentTeam) return null;
+      if (name.length > 100) return null;
+      
      const { data, error } = await supabase
        .from('channels')
        .insert({

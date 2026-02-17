@@ -89,16 +89,19 @@
      };
    }, [channelId]);
  
-   const sendMessage = async (content: string) => {
-     if (!user || !channelId || !content.trim()) return;
- 
-     const { error } = await supabase.from('messages').insert({
-       channel_id: channelId,
-       user_id: user.id,
-       content: content.trim(),
-     });
- 
-     return !error;
+    const sendMessage = async (content: string) => {
+      if (!user || !channelId || !content.trim()) return;
+      
+      const trimmed = content.trim();
+      if (trimmed.length > 4000) return false;
+
+      const { error } = await supabase.from('messages').insert({
+        channel_id: channelId,
+        user_id: user.id,
+        content: trimmed,
+      });
+
+      return !error;
    };
  
    const deleteMessage = async (messageId: string) => {
