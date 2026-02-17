@@ -8,6 +8,60 @@ const corsHeaders = {
 // In-memory store for voice channel participants (in production, use Redis/database)
 const voiceChannels = new Map<string, Map<string, { odId: string; sdp?: string; candidates: RTCIceCandidateInit[] }>>()
 
+// Rate limiting: 100 requests per minute per user
+const rateLimits = new Map<string, { count: number; resetAt: number }>()
+const RATE_LIMIT = 100
+const RATE_WINDOW_MS = 60_000
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now()
+  const entry = rateLimits.get(userId)
+  if (!entry || now > entry.resetAt) {
+    rateLimits.set(userId, { count: 1, resetAt: now + RATE_WINDOW_MS })
+    return true
+  }
+  if (entry.count >= RATE_LIMIT) return false
+  entry.count++
+  return true
+}
+
+// Input validation helpers
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const VALID_ACTIONS = new Set(['join', 'leave', 'offer', 'answer', 'ice-candidate', 'get-participants'])
+const MAX_SDP_LENGTH = 100_000
+
+function validateInput(body: unknown): { valid: true; data: { action: string; channelId?: string; sdp?: string; candidate?: unknown; targetUserId?: string } } | { valid: false; error: string } {
+  if (!body || typeof body !== 'object') return { valid: false, error: 'Invalid request body' }
+  const b = body as Record<string, unknown>
+
+  if (typeof b.action !== 'string' || !VALID_ACTIONS.has(b.action)) {
+    return { valid: false, error: 'Invalid action' }
+  }
+
+  if (b.channelId !== undefined && (typeof b.channelId !== 'string' || !UUID_RE.test(b.channelId))) {
+    return { valid: false, error: 'Invalid channelId' }
+  }
+
+  if (b.targetUserId !== undefined && (typeof b.targetUserId !== 'string' || !UUID_RE.test(b.targetUserId))) {
+    return { valid: false, error: 'Invalid targetUserId' }
+  }
+
+  if (b.sdp !== undefined && (typeof b.sdp !== 'string' || b.sdp.length > MAX_SDP_LENGTH)) {
+    return { valid: false, error: 'Invalid or oversized SDP' }
+  }
+
+  return {
+    valid: true,
+    data: {
+      action: b.action as string,
+      channelId: b.channelId as string | undefined,
+      sdp: b.sdp as string | undefined,
+      candidate: b.candidate,
+      targetUserId: b.targetUserId as string | undefined,
+    },
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -28,15 +82,30 @@ Deno.serve(async (req) => {
     // Get user from auth
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
     if (authError || !user) {
-      console.error('Auth error:', authError)
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    const { action, channelId, sdp, candidate, targetUserId } = await req.json()
-    console.log(`[Signaling] Action: ${action}, Channel: ${channelId}, User: ${user.id}`)
+    // Rate limit check
+    if (!checkRateLimit(user.id)) {
+      return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Parse and validate input
+    const rawBody = await req.json()
+    const validation = validateInput(rawBody)
+    if (!validation.valid) {
+      return new Response(JSON.stringify({ error: validation.error }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    const { action, channelId, sdp, candidate, targetUserId } = validation.data
 
     // Verify the user is a member of the team that owns this channel
     const actionsRequiringAuth = ['join', 'leave', 'offer', 'answer', 'ice-candidate']
@@ -71,18 +140,17 @@ Deno.serve(async (req) => {
 
     switch (action) {
       case 'join': {
-        // Initialize channel if not exists
+        if (!channelId) {
+          return new Response(JSON.stringify({ error: 'channelId required' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
         if (!voiceChannels.has(channelId)) {
           voiceChannels.set(channelId, new Map())
         }
         const channel = voiceChannels.get(channelId)!
-        
-        // Add user to channel
         channel.set(user.id, { odId: user.id, candidates: [] })
-        
-        // Get other participants
         const participants = Array.from(channel.keys()).filter(id => id !== user.id)
-        console.log(`[Signaling] User ${user.id} joined. Participants: ${participants.length}`)
         
         return new Response(JSON.stringify({ 
           success: true, 
@@ -94,6 +162,11 @@ Deno.serve(async (req) => {
       }
 
       case 'leave': {
+        if (!channelId) {
+          return new Response(JSON.stringify({ error: 'channelId required' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
         const channel = voiceChannels.get(channelId)
         if (channel) {
           channel.delete(user.id)
@@ -101,7 +174,6 @@ Deno.serve(async (req) => {
             voiceChannels.delete(channelId)
           }
         }
-        console.log(`[Signaling] User ${user.id} left channel ${channelId}`)
         
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -109,14 +181,13 @@ Deno.serve(async (req) => {
       }
 
       case 'offer': {
-        const channel = voiceChannels.get(channelId)
+        const channel = voiceChannels.get(channelId!)
         if (channel && targetUserId) {
           const targetUser = channel.get(targetUserId)
           if (targetUser) {
             targetUser.sdp = sdp
           }
         }
-        console.log(`[Signaling] Offer stored for ${targetUserId}`)
         
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -124,18 +195,17 @@ Deno.serve(async (req) => {
       }
 
       case 'answer': {
-        console.log(`[Signaling] Answer received from ${user.id}`)
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
 
       case 'ice-candidate': {
-        const channel = voiceChannels.get(channelId)
+        const channel = voiceChannels.get(channelId!)
         if (channel && targetUserId) {
           const targetUser = channel.get(targetUserId)
           if (targetUser && candidate) {
-            targetUser.candidates.push(candidate)
+            targetUser.candidates.push(candidate as RTCIceCandidateInit)
           }
         }
         
@@ -145,7 +215,7 @@ Deno.serve(async (req) => {
       }
 
       case 'get-participants': {
-        const channel = voiceChannels.get(channelId)
+        const channel = voiceChannels.get(channelId!)
         const participants = channel ? Array.from(channel.keys()) : []
         
         return new Response(JSON.stringify({ participants }), {
@@ -160,8 +230,7 @@ Deno.serve(async (req) => {
         })
     }
   } catch (error) {
-    console.error('[Signaling] Error:', error)
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })

@@ -186,32 +186,29 @@
      return teamData as Team;
    };
  
-   const joinTeam = async (inviteCode: string): Promise<boolean> => {
-     if (!user) return false;
-     
-     const { data: team } = await supabase
-       .from('teams')
-       .select('*')
-       .eq('invite_code', inviteCode.trim())
-       .single();
-     
-     if (!team) return false;
-     
-     const { error } = await supabase
-       .from('team_members')
-       .insert({
-         team_id: team.id,
-         user_id: user.id,
-         role: 'member',
-       });
-     
-     if (error) return false;
-     
-     await refreshTeams();
-     setCurrentTeam(team as Team);
-     
-     return true;
-   };
+    const joinTeam = async (inviteCode: string): Promise<boolean> => {
+      if (!user) return false;
+      
+      const { data: teamId, error } = await supabase
+        .rpc('join_team_by_invite_code', { code: inviteCode.trim() });
+      
+      if (error || !teamId) return false;
+      
+      await refreshTeams();
+      
+      // Fetch the team we just joined to set as current
+      const { data: team } = await supabase
+        .from('teams')
+        .select('*')
+        .eq('id', teamId)
+        .single();
+      
+      if (team) {
+        setCurrentTeam(team as Team);
+      }
+      
+      return true;
+    };
  
     const createChannel = async (name: string, description?: string): Promise<Channel | null> => {
       if (!user || !currentTeam) return null;

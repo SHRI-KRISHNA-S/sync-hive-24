@@ -339,6 +339,7 @@ export type Database = {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
+      join_team_by_invite_code: { Args: { code: string }; Returns: string }
     }
     Enums: {
       team_role: "owner" | "admin" | "member"
