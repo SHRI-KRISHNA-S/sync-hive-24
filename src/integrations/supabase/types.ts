@@ -335,6 +335,7 @@ export type Database = {
         Args: { _description?: string; _name: string }
         Returns: string
       }
+      delete_team: { Args: { _team_id: string }; Returns: undefined }
       get_team_role: {
         Args: { _team_id: string; _user_id: string }
         Returns: Database["public"]["Enums"]["team_role"]
