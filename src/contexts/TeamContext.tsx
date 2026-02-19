@@ -3,20 +3,21 @@
  import { useAuth } from './AuthContext';
  import { Team, Channel, TeamMember, Profile } from '@/lib/supabase-types';
  
- interface TeamContextType {
-   teams: Team[];
-   currentTeam: Team | null;
-   currentChannel: Channel | null;
-   channels: Channel[];
-   teamMembers: (TeamMember & { profile: Profile })[];
-   loading: boolean;
-   setCurrentTeam: (team: Team | null) => void;
-   setCurrentChannel: (channel: Channel | null) => void;
-   createTeam: (name: string, description?: string) => Promise<Team | null>;
-   joinTeam: (inviteCode: string) => Promise<boolean>;
-   createChannel: (name: string, description?: string) => Promise<Channel | null>;
-   refreshTeams: () => Promise<void>;
- }
+interface TeamContextType {
+    teams: Team[];
+    currentTeam: Team | null;
+    currentChannel: Channel | null;
+    channels: Channel[];
+    teamMembers: (TeamMember & { profile: Profile })[];
+    loading: boolean;
+    setCurrentTeam: (team: Team | null) => void;
+    setCurrentChannel: (channel: Channel | null) => void;
+    createTeam: (name: string, description?: string) => Promise<Team | null>;
+    joinTeam: (inviteCode: string) => Promise<boolean>;
+    createChannel: (name: string, description?: string) => Promise<Channel | null>;
+    deleteTeam: (teamId: string) => Promise<boolean>;
+    refreshTeams: () => Promise<void>;
+  }
  
  const TeamContext = createContext<TeamContextType | undefined>(undefined);
  
@@ -216,27 +217,47 @@
        .select()
        .single();
      
-     if (error || !data) return null;
-     
-     setChannels(prev => [...prev, data as Channel]);
-     return data as Channel;
-   };
- 
-   return (
-     <TeamContext.Provider value={{
-       teams,
-       currentTeam,
-       currentChannel,
-       channels,
-       teamMembers,
-       loading,
-       setCurrentTeam,
-       setCurrentChannel,
-       createTeam,
+    if (error || !data) return null;
+      
+      setChannels(prev => [...prev, data as Channel]);
+      return data as Channel;
+    };
+
+    const deleteTeam = async (teamId: string): Promise<boolean> => {
+      if (!user) return false;
+
+      const { error } = await supabase.rpc('delete_team', { _team_id: teamId });
+
+      if (error) {
+        console.error('Delete team error:', error);
+        return false;
+      }
+
+      setTeams(prev => prev.filter(t => t.id !== teamId));
+      if (currentTeam?.id === teamId) {
+        const remaining = teams.filter(t => t.id !== teamId);
+        setCurrentTeam(remaining.length > 0 ? remaining[0] : null);
+      }
+
+      return true;
+    };
+  
+    return (
+      <TeamContext.Provider value={{
+        teams,
+        currentTeam,
+        currentChannel,
+        channels,
+        teamMembers,
+        loading,
+        setCurrentTeam,
+        setCurrentChannel,
+        createTeam,
        joinTeam,
-       createChannel,
-       refreshTeams,
-     }}>
+        createChannel,
+        deleteTeam,
+        refreshTeams,
+      }}>
        {children}
      </TeamContext.Provider>
    );

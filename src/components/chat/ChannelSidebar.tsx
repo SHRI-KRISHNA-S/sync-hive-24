@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Hash, Plus, ChevronDown, MessageSquare, Copy, Check, Moon, Sun } from 'lucide-react';
+import { Hash, Plus, ChevronDown, MessageSquare, Copy, Check, Moon, Sun, Trash2 } from 'lucide-react';
 import { useTeam } from '@/contexts/TeamContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { usePresence } from '@/hooks/usePresence';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -10,15 +11,43 @@ import { CreateChannelDialog } from './CreateChannelDialog';
 import { VoiceChannel } from './VoiceChannel';
 import { useTheme } from '@/hooks/useTheme';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
  
- export const ChannelSidebar = () => {
-   const { currentTeam, channels, currentChannel, setCurrentChannel, teamMembers } = useTeam();
-   const { isUserOnline } = usePresence(currentTeam?.id || null);
-   const { theme, toggleTheme } = useTheme();
-   const [channelsOpen, setChannelsOpen] = useState(true);
-   const [membersOpen, setMembersOpen] = useState(true);
-   const [showCreateChannel, setShowCreateChannel] = useState(false);
-   const [copied, setCopied] = useState(false);
+  export const ChannelSidebar = () => {
+    const { currentTeam, channels, currentChannel, setCurrentChannel, teamMembers, deleteTeam } = useTeam();
+    const { user } = useAuth();
+    const { isUserOnline } = usePresence(currentTeam?.id || null);
+    const { theme, toggleTheme } = useTheme();
+    const [channelsOpen, setChannelsOpen] = useState(true);
+    const [membersOpen, setMembersOpen] = useState(true);
+    const [showCreateChannel, setShowCreateChannel] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
+    const isOwner = teamMembers.some(m => m.user_id === user?.id && m.role === 'owner');
+
+    const handleDeleteTeam = async () => {
+      if (!currentTeam) return;
+      setDeleting(true);
+      const success = await deleteTeam(currentTeam.id);
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+      if (success) {
+        toast.success('Team deleted');
+      } else {
+        toast.error('Failed to delete team');
+      }
+    };
  
    const copyInviteCode = async () => {
      if (currentTeam?.invite_code) {
@@ -58,9 +87,19 @@ import { toast } from 'sonner';
              className="h-8 w-8"
              onClick={toggleTheme}
            >
-             {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-           </Button>
-         </div>
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </Button>
+            {isOwner && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
        </div>
  
        <div className="flex-1 overflow-y-auto scrollbar-thin p-2">
@@ -152,7 +191,28 @@ import { toast } from 'sonner';
           />
         )}
 
-        <CreateChannelDialog open={showCreateChannel} onOpenChange={setShowCreateChannel} />
-      </div>
-    );
-  };
+         <CreateChannelDialog open={showCreateChannel} onOpenChange={setShowCreateChannel} />
+
+         <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+           <AlertDialogContent>
+             <AlertDialogHeader>
+               <AlertDialogTitle>Delete "{currentTeam?.name}"?</AlertDialogTitle>
+               <AlertDialogDescription>
+                 This will permanently delete the team, all channels, messages, and members. This action cannot be undone.
+               </AlertDialogDescription>
+             </AlertDialogHeader>
+             <AlertDialogFooter>
+               <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+               <AlertDialogAction
+                 onClick={handleDeleteTeam}
+                 disabled={deleting}
+                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+               >
+                 {deleting ? 'Deleting...' : 'Delete Team'}
+               </AlertDialogAction>
+             </AlertDialogFooter>
+           </AlertDialogContent>
+         </AlertDialog>
+       </div>
+     );
+   };
