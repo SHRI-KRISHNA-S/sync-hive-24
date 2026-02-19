@@ -145,46 +145,34 @@
       fetchMembers();
     }, [currentTeam]);
  
-    const createTeam = async (name: string, description?: string): Promise<Team | null> => {
-      if (!user) return null;
-      if (name.length > 100) return null;
+     const createTeam = async (name: string, description?: string): Promise<Team | null> => {
+       if (!user) return null;
+       if (name.length > 100) return null;
+       
+      const { data: teamId, error } = await supabase
+        .rpc('create_team_with_defaults', {
+          _name: name,
+          _description: description || null,
+        });
       
-     const { data: teamData, error: teamError } = await supabase
-       .from('teams')
-       .insert({
-         name,
-         description,
-         created_by: user.id,
-       })
-       .select()
-       .single();
-     
-     if (teamError || !teamData) return null;
-     
-     // Add creator as owner
-     await supabase
-       .from('team_members')
-       .insert({
-         team_id: teamData.id,
-         user_id: user.id,
-         role: 'owner',
-       });
-     
-     // Create default general channel
-     await supabase
-       .from('channels')
-       .insert({
-         team_id: teamData.id,
-         name: 'general',
-         description: 'General discussion',
-         created_by: user.id,
-       });
-     
-     await refreshTeams();
-     setCurrentTeam(teamData as Team);
-     
-     return teamData as Team;
-   };
+      if (error || !teamId) return null;
+      
+      await refreshTeams();
+      
+      // Fetch the newly created team
+      const { data: teamData } = await supabase
+        .from('teams')
+        .select('*')
+        .eq('id', teamId)
+        .single();
+      
+      if (teamData) {
+        setCurrentTeam(teamData as Team);
+        return teamData as Team;
+      }
+      
+      return null;
+    };
  
     const joinTeam = async (inviteCode: string): Promise<boolean> => {
       if (!user) return false;
