@@ -16,6 +16,7 @@ interface TeamContextType {
     joinTeam: (inviteCode: string) => Promise<boolean>;
     createChannel: (name: string, description?: string) => Promise<Channel | null>;
     deleteTeam: (teamId: string) => Promise<boolean>;
+    leaveTeam: (teamId: string) => Promise<boolean>;
     refreshTeams: () => Promise<void>;
   }
  
@@ -241,6 +242,25 @@ interface TeamContextType {
 
       return true;
     };
+
+    const leaveTeam = async (teamId: string): Promise<boolean> => {
+      if (!user) return false;
+
+      const { error } = await supabase.rpc('leave_team', { _team_id: teamId });
+
+      if (error) {
+        console.error('Leave team error:', error);
+        return false;
+      }
+
+      setTeams(prev => prev.filter(t => t.id !== teamId));
+      if (currentTeam?.id === teamId) {
+        const remaining = teams.filter(t => t.id !== teamId);
+        setCurrentTeam(remaining.length > 0 ? remaining[0] : null);
+      }
+
+      return true;
+    };
   
     return (
       <TeamContext.Provider value={{
@@ -256,6 +276,7 @@ interface TeamContextType {
        joinTeam,
         createChannel,
         deleteTeam,
+        leaveTeam,
         refreshTeams,
       }}>
        {children}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Hash, Plus, ChevronDown, MessageSquare, Copy, Check, Moon, Sun, Trash2 } from 'lucide-react';
+import { Hash, Plus, ChevronDown, MessageSquare, Copy, Check, Moon, Sun, Trash2, LogOut } from 'lucide-react';
 import { useTeam } from '@/contexts/TeamContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePresence } from '@/hooks/usePresence';
@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/alert-dialog';
  
   export const ChannelSidebar = () => {
-    const { currentTeam, channels, currentChannel, setCurrentChannel, teamMembers, deleteTeam } = useTeam();
+    const { currentTeam, channels, currentChannel, setCurrentChannel, teamMembers, deleteTeam, leaveTeam } = useTeam();
     const { user } = useAuth();
     const { isUserOnline } = usePresence(currentTeam?.id || null);
     const { theme, toggleTheme } = useTheme();
@@ -32,7 +32,9 @@ import {
     const [showCreateChannel, setShowCreateChannel] = useState(false);
     const [copied, setCopied] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [leaving, setLeaving] = useState(false);
 
     const isOwner = teamMembers.some(m => m.user_id === user?.id && m.role === 'owner');
 
@@ -89,16 +91,25 @@ import {
            >
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
-            {isOwner && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
-                onClick={() => setShowDeleteConfirm(true)}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
+             {isOwner ? (
+               <Button
+                 variant="ghost"
+                 size="icon"
+                 className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
+                 onClick={() => setShowDeleteConfirm(true)}
+               >
+                 <Trash2 className="w-4 h-4" />
+               </Button>
+             ) : (
+               <Button
+                 variant="ghost"
+                 size="icon"
+                 className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
+                 onClick={() => setShowLeaveConfirm(true)}
+               >
+                 <LogOut className="w-4 h-4" />
+               </Button>
+             )}
           </div>
        </div>
  
@@ -212,7 +223,39 @@ import {
                </AlertDialogAction>
              </AlertDialogFooter>
            </AlertDialogContent>
-         </AlertDialog>
+          </AlertDialog>
+
+          <AlertDialog open={showLeaveConfirm} onOpenChange={setShowLeaveConfirm}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Leave "{currentTeam?.name}"?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  You will lose access to all channels and messages in this team. You can rejoin later with an invite code.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={leaving}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    if (!currentTeam) return;
+                    setLeaving(true);
+                    const success = await leaveTeam(currentTeam.id);
+                    setLeaving(false);
+                    setShowLeaveConfirm(false);
+                    if (success) {
+                      toast.success('Left team');
+                    } else {
+                      toast.error('Failed to leave team');
+                    }
+                  }}
+                  disabled={leaving}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {leaving ? 'Leaving...' : 'Leave Team'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
        </div>
      );
    };
