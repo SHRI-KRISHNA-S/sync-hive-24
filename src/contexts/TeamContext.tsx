@@ -155,7 +155,10 @@
           _description: description || null,
         });
       
-      if (error || !teamId) return null;
+      if (error || !teamId) {
+        console.error('Team creation error:', error);
+        return null;
+      }
       
       await refreshTeams();
       
