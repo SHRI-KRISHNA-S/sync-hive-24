@@ -331,6 +331,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_team_with_defaults: {
+        Args: { _description?: string; _name: string }
+        Returns: string
+      }
       get_team_role: {
         Args: { _team_id: string; _user_id: string }
         Returns: Database["public"]["Enums"]["team_role"]
