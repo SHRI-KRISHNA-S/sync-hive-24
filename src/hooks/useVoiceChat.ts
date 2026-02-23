@@ -243,9 +243,16 @@ export const useVoiceChat = (channelId: string | null) => {
 
     pc.oniceconnectionstatechange = () => {
       console.log(`[VoiceChat] ICE state for ${targetUserId}: ${pc.iceConnectionState}`);
-      if (pc.iceConnectionState === 'failed') {
+      if (
+        pc.iceConnectionState === 'failed' ||
+        pc.iceConnectionState === 'disconnected'
+      ) {
         console.log(`[VoiceChat] Restarting ICE for ${targetUserId}`);
-        pc.restartIce();
+        try {
+          pc.restartIce();
+        } catch (err) {
+          console.error('[VoiceChat] restartIce error:', err);
+        }
       }
       if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
         console.log(`[VoiceChat] *** Successfully connected to ${targetUserId}!`);
@@ -425,7 +432,6 @@ export const useVoiceChat = (channelId: string | null) => {
               isMuted: false,
               isVideoOn: false,
               isScreenSharing: false,
-              joined_at: new Date().toISOString(),
             });
             setIsConnected(true);
             isConnectedRef.current = true;
@@ -464,7 +470,6 @@ export const useVoiceChat = (channelId: string | null) => {
       isMuted: isMutedRef.current,
       isVideoOn: isVideoOnRef.current,
       isScreenSharing: isScreenSharingRef.current,
-      joined_at: new Date().toISOString(),
     });
   };
 
