@@ -79,29 +79,30 @@ interface TeamContextType {
    }, [user]);
  
    useEffect(() => {
-     const fetchChannels = async () => {
-       if (!currentTeam) {
-         setChannels([]);
-         setCurrentChannel(null);
-         return;
-       }
-       
-       const { data } = await supabase
-         .from('channels')
-         .select('*')
-         .eq('team_id', currentTeam.id)
-         .order('created_at', { ascending: true });
-       
-       if (data) {
-         setChannels(data as Channel[]);
-         if (!currentChannel || currentChannel.team_id !== currentTeam.id) {
-           setCurrentChannel(data[0] as Channel || null);
-         }
-       }
-     };
-     
-     fetchChannels();
-   }, [currentTeam]);
+  // FIX: clear old channel when switching teams
+  setCurrentChannel(null);
+
+  const fetchChannels = async () => {
+    if (!currentTeam) {
+      setChannels([]);
+      setCurrentChannel(null);
+      return;
+    }
+
+    const { data } = await supabase
+      .from('channels')
+      .select('*')
+      .eq('team_id', currentTeam.id)
+      .order('created_at', { ascending: true });
+
+    if (data) {
+      setChannels(data as Channel[]);
+      setCurrentChannel(data[0] as Channel || null);
+    }
+  };
+
+  fetchChannels();
+}, [currentTeam]);
  
     useEffect(() => {
       const fetchMembers = async () => {
