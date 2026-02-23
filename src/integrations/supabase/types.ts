@@ -345,6 +345,10 @@ export type Database = {
         Returns: boolean
       }
       join_team_by_invite_code: { Args: { code: string }; Returns: string }
+      kick_team_member: {
+        Args: { _team_id: string; _user_id: string }
+        Returns: undefined
+      }
       leave_team: { Args: { _team_id: string }; Returns: undefined }
     }
     Enums: {
