@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Message, Profile } from '@/lib/supabase-types';
 import { useAuth } from '@/contexts/AuthContext';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 export const useMessages = (channelId: string | null) => {
   const { user } = useAuth();
@@ -9,14 +10,9 @@ export const useMessages = (channelId: string | null) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ keep latest channel safely (prevents stale events)
-  const activeChannelRef = useRef<string | null>(channelId);
-
-  useEffect(() => {
-    activeChannelRef.current = channelId;
-  }, [channelId]);
-
-  // ---------------- FETCH MESSAGES ----------------
+  /* -------------------------------------------------- */
+  /* FETCH MESSAGES                                     */
+  /* -------------------------------------------------- */
   const fetchMessages = useCallback(async () => {
     if (!channelId) {
       setMessages([]);
@@ -52,25 +48,25 @@ export const useMessages = (channelId: string | null) => {
     fetchMessages();
   }, [fetchMessages]);
 
-  // ---------------- REALTIME SUBSCRIPTION ----------------
+  /* -------------------------------------------------- */
+  /* REALTIME SUBSCRIPTION (FIXED)                      */
+  /* -------------------------------------------------- */
   useEffect(() => {
     if (!channelId) return;
 
-    const realtime = supabase
+    const realtime: RealtimeChannel = supabase
       .channel(`messages:${channelId}`)
 
-      // -------- INSERT --------
+      // ✅ INSERT listener (filtered by channel)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
+          filter: `channel_id=eq.${channelId}`,
         },
         async (payload) => {
-          // ✅ Ignore stale events
-          if (payload.new.channel_id !== activeChannelRef.current) return;
-
           const { data: profileData } = await supabase
             .from('profiles')
             .select('*')
@@ -90,17 +86,16 @@ export const useMessages = (channelId: string | null) => {
         }
       )
 
-      // -------- DELETE --------
+      // ✅ DELETE listener (filtered)
       .on(
         'postgres_changes',
         {
           event: 'DELETE',
           schema: 'public',
           table: 'messages',
+          filter: `channel_id=eq.${channelId}`,
         },
         (payload) => {
-          if (payload.old.channel_id !== activeChannelRef.current) return;
-
           setMessages(prev =>
             prev.filter(m => m.id !== payload.old.id)
           );
@@ -109,12 +104,15 @@ export const useMessages = (channelId: string | null) => {
 
       .subscribe();
 
+    // cleanup old subscription when switching channels
     return () => {
       supabase.removeChannel(realtime);
     };
   }, [channelId]);
 
-  // ---------------- SEND MESSAGE ----------------
+  /* -------------------------------------------------- */
+  /* SEND MESSAGE                                       */
+  /* -------------------------------------------------- */
   const sendMessage = async (content: string) => {
     if (!user || !channelId || !content.trim()) return false;
 
@@ -130,7 +128,9 @@ export const useMessages = (channelId: string | null) => {
     return !error;
   };
 
-  // ---------------- DELETE MESSAGE ----------------
+  /* -------------------------------------------------- */
+  /* DELETE MESSAGE                                     */
+  /* -------------------------------------------------- */
   const deleteMessage = async (messageId: string) => {
     const { error } = await supabase
       .from('messages')
