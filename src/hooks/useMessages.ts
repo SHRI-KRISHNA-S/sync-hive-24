@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Message, Profile } from '@/lib/supabase-types';
 import { useAuth } from '@/contexts/AuthContext';
-import { RealtimeChannel } from '@supabase/supabase-js';
 
 export const useMessages = (channelId: string | null) => {
   const { user } = useAuth();
@@ -10,12 +9,14 @@ export const useMessages = (channelId: string | null) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ⭐ keep subscription reference
-  const realtimeRef = useRef<RealtimeChannel | null>(null);
+  // ✅ keep latest channel safely (prevents stale events)
+  const activeChannelRef = useRef<string | null>(channelId);
 
-  /* -------------------------------------------------- */
-  /* FETCH MESSAGES                                     */
-  /* -------------------------------------------------- */
+  useEffect(() => {
+    activeChannelRef.current = channelId;
+  }, [channelId]);
+
+  // ---------------- FETCH MESSAGES ----------------
   const fetchMessages = useCallback(async () => {
     if (!channelId) {
       setMessages([]);
@@ -51,36 +52,25 @@ export const useMessages = (channelId: string | null) => {
     fetchMessages();
   }, [fetchMessages]);
 
-  /* -------------------------------------------------- */
-  /* REALTIME SUBSCRIPTION                              */
-  /* -------------------------------------------------- */
+  // ---------------- REALTIME SUBSCRIPTION ----------------
   useEffect(() => {
     if (!channelId) return;
 
-    // ⭐ IMPORTANT FIX:
-    // remove previous subscription BEFORE creating new one
-    if (realtimeRef.current) {
-      supabase.removeChannel(realtimeRef.current);
-      realtimeRef.current = null;
-    }
+    const realtime = supabase
+      .channel(`messages:${channelId}`)
 
-    // clear old messages immediately when switching channels
-    setMessages([]);
-
-    const realtimeChannel = supabase.channel(
-      `messages-channel-${channelId}`
-    );
-
-    realtimeChannel
+      // -------- INSERT --------
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `channel_id=eq.${channelId}`,
         },
-        async payload => {
+        async (payload) => {
+          // ✅ Ignore stale events
+          if (payload.new.channel_id !== activeChannelRef.current) return;
+
           const { data: profileData } = await supabase
             .from('profiles')
             .select('*')
@@ -99,41 +89,37 @@ export const useMessages = (channelId: string | null) => {
           });
         }
       )
+
+      // -------- DELETE --------
       .on(
         'postgres_changes',
         {
           event: 'DELETE',
           schema: 'public',
           table: 'messages',
-          filter: `channel_id=eq.${channelId}`,
         },
-        payload => {
+        (payload) => {
+          if (payload.old.channel_id !== activeChannelRef.current) return;
+
           setMessages(prev =>
             prev.filter(m => m.id !== payload.old.id)
           );
         }
       )
+
       .subscribe();
 
-    realtimeRef.current = realtimeChannel;
-
-    // cleanup when channel changes/unmounts
     return () => {
-      if (realtimeRef.current) {
-        supabase.removeChannel(realtimeRef.current);
-        realtimeRef.current = null;
-      }
+      supabase.removeChannel(realtime);
     };
   }, [channelId]);
 
-  /* -------------------------------------------------- */
-  /* SEND MESSAGE                                       */
-  /* -------------------------------------------------- */
+  // ---------------- SEND MESSAGE ----------------
   const sendMessage = async (content: string) => {
-    if (!user || !channelId) return false;
+    if (!user || !channelId || !content.trim()) return false;
 
     const trimmed = content.trim();
-    if (!trimmed || trimmed.length > 4000) return false;
+    if (trimmed.length > 4000) return false;
 
     const { error } = await supabase.from('messages').insert({
       channel_id: channelId,
@@ -144,9 +130,7 @@ export const useMessages = (channelId: string | null) => {
     return !error;
   };
 
-  /* -------------------------------------------------- */
-  /* DELETE MESSAGE                                     */
-  /* -------------------------------------------------- */
+  // ---------------- DELETE MESSAGE ----------------
   const deleteMessage = async (messageId: string) => {
     const { error } = await supabase
       .from('messages')
