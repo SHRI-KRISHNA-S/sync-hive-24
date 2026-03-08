@@ -132,6 +132,13 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
           )}
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant={isChatOpen ? "secondary" : "ghost"}
+            size="icon"
+            onClick={() => setIsChatOpen(!isChatOpen)}
+          >
+            <MessageSquare className="w-4 h-4" />
+          </Button>
           <Button variant="ghost" size="icon" onClick={toggleFullscreen}>
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </Button>
