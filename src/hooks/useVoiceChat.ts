@@ -629,6 +629,76 @@ export const useVoiceChat = (channelId: string | null) => {
 
   const getLocalStream = useCallback(() => localStreamRef.current, []);
 
+  // Poll WebRTC stats to determine call quality
+  useEffect(() => {
+    if (!isConnected) {
+      if (statsIntervalRef.current) {
+        clearInterval(statsIntervalRef.current);
+        statsIntervalRef.current = null;
+      }
+      setCallQuality(null);
+      return;
+    }
+
+    statsIntervalRef.current = setInterval(async () => {
+      const peers = Array.from(peerConnectionsRef.current.values());
+      if (peers.length === 0) {
+        setCallQuality(null);
+        return;
+      }
+
+      let totalRtt = 0;
+      let totalPacketLoss = 0;
+      let statCount = 0;
+
+      for (const { connection } of peers) {
+        try {
+          const stats = await connection.getStats();
+          stats.forEach((report) => {
+            if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+              if (report.currentRoundTripTime != null) {
+                totalRtt += report.currentRoundTripTime;
+                statCount++;
+              }
+            }
+            if (report.type === 'inbound-rtp' && report.kind === 'audio') {
+              const lost = report.packetsLost ?? 0;
+              const received = report.packetsReceived ?? 1;
+              totalPacketLoss += lost / (lost + received);
+            }
+          });
+        } catch {
+          // Connection may be closing
+        }
+      }
+
+      if (statCount === 0) {
+        setCallQuality('good');
+        return;
+      }
+
+      const avgRtt = totalRtt / statCount;
+      const avgLoss = totalPacketLoss / Math.max(statCount, 1);
+
+      // RTT thresholds: <150ms good, <400ms fair, else poor
+      // Loss thresholds: <2% good, <8% fair, else poor
+      if (avgRtt < 0.15 && avgLoss < 0.02) {
+        setCallQuality('good');
+      } else if (avgRtt < 0.4 && avgLoss < 0.08) {
+        setCallQuality('fair');
+      } else {
+        setCallQuality('poor');
+      }
+    }, 3000);
+
+    return () => {
+      if (statsIntervalRef.current) {
+        clearInterval(statsIntervalRef.current);
+        statsIntervalRef.current = null;
+      }
+    };
+  }, [isConnected]);
+
   useEffect(() => {
     return () => { cleanup(); };
   }, [cleanup]);
@@ -642,11 +712,14 @@ export const useVoiceChat = (channelId: string | null) => {
     isScreenSharing,
     participants,
     error,
+    callQuality,
     joinVoice,
     leaveVoice,
     toggleMute,
     toggleVideo,
     toggleScreenShare,
     getLocalStream,
+  };
+};
   };
 };
