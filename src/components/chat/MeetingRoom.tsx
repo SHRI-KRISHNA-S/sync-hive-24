@@ -131,6 +131,22 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
         </div>
       )}
 
+      {/* Reconnecting Banner */}
+      <AnimatePresence>
+        {isReconnecting && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="mx-4 mt-4 p-3 bg-amber-500/15 border border-amber-500/30 rounded-lg flex items-center gap-3 text-sm text-amber-200"
+          >
+            <WifiOff className="w-4 h-4 text-amber-400 animate-pulse" />
+            <span>Connection interrupted — reconnecting…</span>
+            <div className="ml-auto w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Connecting State */}
       {isConnecting && (
         <div className="flex-1 flex items-center justify-center">
