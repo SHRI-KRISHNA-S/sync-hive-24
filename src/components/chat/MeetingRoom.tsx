@@ -18,6 +18,7 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
   const {
     isConnected,
     isConnecting,
+    isReconnecting,
     isMuted,
     isVideoOn,
     isScreenSharing,
