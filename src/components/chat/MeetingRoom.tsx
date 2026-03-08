@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useVoiceChat, CallQuality } from '@/hooks/useVoiceChat';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { MeetingChat } from './MeetingChat';
 
 interface MeetingRoomProps {
   channelId: string;
