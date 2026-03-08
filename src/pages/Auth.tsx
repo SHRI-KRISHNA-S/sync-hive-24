@@ -263,8 +263,13 @@ import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
                 </div>
                </CardContent>
  
-               <CardFooter className="flex flex-col gap-4">
-                 <Button type="submit" className="w-full" disabled={submitting}>
+                <CardFooter className="flex flex-col gap-4">
+                  {!isSignUp && (
+                    <div className="w-full flex justify-end -mt-2 -mb-1">
+                      <ForgotPasswordDialog />
+                    </div>
+                  )}
+                  <Button type="submit" className="w-full" disabled={submitting}>
                    {submitting ? (
                      <Loader2 className="w-4 h-4 animate-spin" />
                    ) : (
