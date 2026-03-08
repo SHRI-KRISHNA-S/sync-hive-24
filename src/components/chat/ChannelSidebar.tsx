@@ -27,9 +27,10 @@ import {
  
   interface ChannelSidebarProps {
     onOpenDM?: (profile: Profile) => void;
+    getUnreadCount?: (userId: string) => number;
   }
 
-  export const ChannelSidebar = ({ onOpenDM }: ChannelSidebarProps) => {
+  export const ChannelSidebar = ({ onOpenDM, getUnreadCount }: ChannelSidebarProps) => {
     const { currentTeam, channels, currentChannel, setCurrentChannel, teamMembers, deleteTeam, leaveTeam, kickMember } = useTeam();
     const { user } = useAuth();
     const { isUserOnline } = usePresence(currentTeam?.id || null);
