@@ -138,11 +138,11 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="mx-4 mt-4 p-3 bg-warning/15 border border-warning/30 rounded-lg flex items-center gap-3 text-sm text-warning-foreground"
+            className="mx-4 mt-4 p-3 bg-accent/50 border border-accent rounded-lg flex items-center gap-3 text-sm text-accent-foreground"
           >
-            <WifiOff className="w-4 h-4 text-warning animate-pulse" />
+            <WifiOff className="w-4 h-4 text-accent-foreground animate-pulse" />
             <span>Connection interrupted — reconnecting…</span>
-            <div className="ml-auto w-4 h-4 border-2 border-warning border-t-transparent rounded-full animate-spin" />
+            <div className="ml-auto w-4 h-4 border-2 border-accent-foreground border-t-transparent rounded-full animate-spin" />
           </motion.div>
         )}
       </AnimatePresence>
