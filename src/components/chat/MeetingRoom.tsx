@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Video, VideoOff, Mic, MicOff, PhoneOff, Monitor, MonitorOff, Settings, Maximize2, Minimize2, WifiOff } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, PhoneOff, Monitor, MonitorOff, Settings, Maximize2, Minimize2, WifiOff, Signal, SignalLow, SignalMedium, SignalHigh } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
