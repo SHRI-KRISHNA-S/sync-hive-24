@@ -107,7 +107,7 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
   const otherParticipants = participants.filter(p => p.odUserId !== profile?.user_id);
 
   return (
-    <div className="flex-1 flex flex-col bg-background">
+    <div className="flex-1 flex flex-col bg-background overflow-hidden">
       {/* Header */}
       <div className="h-14 px-4 flex items-center justify-between border-b border-border bg-card">
         <div className="flex items-center gap-3">
