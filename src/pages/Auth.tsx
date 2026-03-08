@@ -10,8 +10,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from 'sonner';
 import { z } from 'zod';
  
+ const ALLOWED_DOMAIN = '@bitsathy.ac.in';
+
  const signInSchema = z.object({
-   email: z.string().email('Please enter a valid email'),
+   email: z.string().email('Please enter a valid email').refine(
+     (email) => email.endsWith(ALLOWED_DOMAIN),
+     { message: `Only ${ALLOWED_DOMAIN} email addresses are allowed` }
+   ),
    password: z.string().min(6, 'Password must be at least 6 characters'),
  });
  
@@ -215,7 +220,7 @@ import { z } from 'zod';
                        id="email"
                        name="email"
                        type="email"
-                       placeholder="john@example.com"
+                       placeholder="yourname@bitsathy.ac.in"
                        value={formData.email}
                        onChange={handleChange}
                        className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}
