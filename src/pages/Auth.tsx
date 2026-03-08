@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
  
  const ALLOWED_DOMAIN = '@bitsathy.ac.in';
 
@@ -262,8 +263,13 @@ import { z } from 'zod';
                 </div>
                </CardContent>
  
-               <CardFooter className="flex flex-col gap-4">
-                 <Button type="submit" className="w-full" disabled={submitting}>
+                <CardFooter className="flex flex-col gap-4">
+                  {!isSignUp && (
+                    <div className="w-full flex justify-end -mt-2 -mb-1">
+                      <ForgotPasswordDialog />
+                    </div>
+                  )}
+                  <Button type="submit" className="w-full" disabled={submitting}>
                    {submitting ? (
                      <Loader2 className="w-4 h-4 animate-spin" />
                    ) : (
