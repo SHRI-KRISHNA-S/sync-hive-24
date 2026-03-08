@@ -35,6 +35,7 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
   } = useVoiceChat(channelId);
   
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const screenShareRef = useRef<HTMLVideoElement>(null);
