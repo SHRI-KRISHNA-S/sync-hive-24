@@ -46,6 +46,8 @@ export const useVoiceChat = (channelId: string | null) => {
   const [participants, setParticipants] = useState<VoiceParticipant[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [callQuality, setCallQuality] = useState<CallQuality>(null);
+  const statsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const localStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
