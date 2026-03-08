@@ -171,45 +171,56 @@ import {
            </CollapsibleTrigger>
            <CollapsibleContent>
               <div className="space-y-0.5 mt-1">
-                {teamMembers.map((member) => (
-                  <div
-                    key={member.id}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm hover:bg-sidebar-accent/50 group"
-                  >
-                    <div className="relative">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={member.profile?.avatar_url || undefined} />
-                        <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                          {member.profile?.username?.substring(0, 2).toUpperCase() || '??'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span 
-                        className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-sidebar
-                          ${isUserOnline(member.user_id) ? 'bg-online' : 'bg-offline'}
-                        `}
-                      />
-                    </div>
-                    <span className="truncate text-sidebar-foreground/80 flex-1">
-                      {member.profile?.display_name || member.profile?.username}
-                    </span>
-                    {member.role === 'owner' && (
-                      <span className="text-xs text-mention">👑</span>
-                    )}
-                    {isOwner && member.user_id !== user?.id && member.role !== 'owner' && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5 opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground shrink-0"
-                        onClick={() => setKickTarget({
-                          userId: member.user_id,
-                          name: member.profile?.display_name || member.profile?.username || 'this member',
-                        })}
-                      >
-                        <UserMinus className="w-3 h-3" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
+                 {teamMembers.map((member) => (
+                   <div
+                     key={member.id}
+                     className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm hover:bg-sidebar-accent/50 group cursor-pointer"
+                     onClick={() => {
+                       if (member.user_id !== user?.id && onOpenDM && member.profile) {
+                         onOpenDM(member.profile);
+                       }
+                     }}
+                   >
+                     <div className="relative">
+                       <Avatar className="h-6 w-6">
+                         <AvatarImage src={member.profile?.avatar_url || undefined} />
+                         <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                           {member.profile?.username?.substring(0, 2).toUpperCase() || '??'}
+                         </AvatarFallback>
+                       </Avatar>
+                       <span 
+                         className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-sidebar
+                           ${isUserOnline(member.user_id) ? 'bg-online' : 'bg-offline'}
+                         `}
+                       />
+                     </div>
+                     <span className="truncate text-sidebar-foreground/80 flex-1">
+                       {member.profile?.display_name || member.profile?.username}
+                     </span>
+                     {member.role === 'owner' && (
+                       <span className="text-xs text-mention">👑</span>
+                     )}
+                     {member.user_id !== user?.id && (
+                       <Mail className="w-3 h-3 opacity-0 group-hover:opacity-60 shrink-0" />
+                     )}
+                     {isOwner && member.user_id !== user?.id && member.role !== 'owner' && (
+                       <Button
+                         variant="ghost"
+                         size="icon"
+                         className="h-5 w-5 opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground shrink-0"
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           setKickTarget({
+                             userId: member.user_id,
+                             name: member.profile?.display_name || member.profile?.username || 'this member',
+                           });
+                         }}
+                       >
+                         <UserMinus className="w-3 h-3" />
+                       </Button>
+                     )}
+                   </div>
+                 ))}
               </div>
             </CollapsibleContent>
          </Collapsible>
