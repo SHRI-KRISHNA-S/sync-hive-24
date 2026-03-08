@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Video, VideoOff, Mic, MicOff, PhoneOff, Monitor, MonitorOff, Settings, Maximize2, Minimize2, WifiOff, Signal, SignalLow, SignalMedium, SignalHigh } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, PhoneOff, Monitor, MonitorOff, Settings, Maximize2, Minimize2, WifiOff, SignalLow, SignalMedium, SignalHigh, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useVoiceChat, CallQuality } from '@/hooks/useVoiceChat';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { MeetingChat } from './MeetingChat';
 
 interface MeetingRoomProps {
   channelId: string;
@@ -34,6 +35,7 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
   } = useVoiceChat(channelId);
   
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const screenShareRef = useRef<HTMLVideoElement>(null);
@@ -105,7 +107,7 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
   const otherParticipants = participants.filter(p => p.odUserId !== profile?.user_id);
 
   return (
-    <div className="flex-1 flex flex-col bg-background">
+    <div className="flex-1 flex flex-col bg-background overflow-hidden">
       {/* Header */}
       <div className="h-14 px-4 flex items-center justify-between border-b border-border bg-card">
         <div className="flex items-center gap-3">
@@ -130,6 +132,13 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
           )}
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant={isChatOpen ? "secondary" : "ghost"}
+            size="icon"
+            onClick={() => setIsChatOpen(!isChatOpen)}
+          >
+            <MessageSquare className="w-4 h-4" />
+          </Button>
           <Button variant="ghost" size="icon" onClick={toggleFullscreen}>
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </Button>
@@ -139,171 +148,195 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
         </div>
       </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="mx-4 mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
-          {error}
-        </div>
-      )}
+      {/* Main content area with optional chat panel */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Video / participants area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Error Message */}
+          {error && (
+            <div className="mx-4 mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
+              {error}
+            </div>
+          )}
 
-      {/* Reconnecting Banner */}
-      <AnimatePresence>
-        {isReconnecting && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="mx-4 mt-4 p-3 bg-accent/50 border border-accent rounded-lg flex items-center gap-3 text-sm text-accent-foreground"
-          >
-            <WifiOff className="w-4 h-4 text-accent-foreground animate-pulse" />
-            <span>Connection interrupted — reconnecting…</span>
-            <div className="ml-auto w-4 h-4 border-2 border-accent-foreground border-t-transparent rounded-full animate-spin" />
-          </motion.div>
-        )}
-      </AnimatePresence>
+          {/* Reconnecting Banner */}
+          <AnimatePresence>
+            {isReconnecting && (
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="mx-4 mt-4 p-3 bg-accent/50 border border-accent rounded-lg flex items-center gap-3 text-sm text-accent-foreground"
+              >
+                <WifiOff className="w-4 h-4 text-accent-foreground animate-pulse" />
+                <span>Connection interrupted — reconnecting…</span>
+                <div className="ml-auto w-4 h-4 border-2 border-accent-foreground border-t-transparent rounded-full animate-spin" />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      {/* Connecting State */}
-      {isConnecting && (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-muted-foreground">Connecting to meeting...</p>
-          </div>
-        </div>
-      )}
-
-      {/* Screen Share View */}
-      {isScreenSharing && (
-        <div className="mx-4 mt-4 aspect-video bg-black rounded-xl overflow-hidden">
-          <video
-            ref={screenShareRef}
-            autoPlay
-            muted
-            playsInline
-            className="w-full h-full object-contain"
-          />
-          <div className="absolute bottom-2 left-2 text-xs bg-black/70 text-white px-2 py-1 rounded">
-            You are sharing your screen
-          </div>
-        </div>
-      )}
-
-      {/* Participants Grid */}
-      {isConnected && !isConnecting && (
-        <div className="flex-1 p-4 overflow-auto">
-          <div className={cn(
-            "grid gap-4 auto-rows-fr",
-            participants.length <= 1 && "grid-cols-1",
-            participants.length === 2 && "grid-cols-2",
-            participants.length >= 3 && participants.length <= 4 && "grid-cols-2",
-            participants.length >= 5 && "grid-cols-3"
-          )}>
-            {/* Current User */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className={cn(
-                "relative aspect-video bg-muted rounded-xl flex items-center justify-center overflow-hidden",
-                "ring-2 ring-primary/50"
-              )}
-            >
-              {isVideoOn ? (
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  muted
-                  playsInline
-                  className="w-full h-full object-cover mirror"
-                  style={{ transform: 'scaleX(-1)' }}
-                />
-              ) : (
-                <Avatar className="w-20 h-20">
-                  <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-                    {profile?.username?.substring(0, 2).toUpperCase() || 'ME'}
-                  </AvatarFallback>
-                </Avatar>
-              )}
-              <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-                <span className="text-xs bg-black/50 text-white px-2 py-1 rounded">
-                  {profile?.display_name || profile?.username || 'You'} (You)
-                </span>
-                <div className="flex gap-1">
-                  {isMuted && (
-                    <span className="bg-destructive text-destructive-foreground p-1 rounded">
-                      <MicOff className="w-3 h-3" />
-                    </span>
-                  )}
-                  {!isVideoOn && (
-                    <span className="bg-muted-foreground/50 text-white p-1 rounded">
-                      <VideoOff className="w-3 h-3" />
-                    </span>
-                  )}
-                </div>
+          {/* Screen Share View */}
+          {isScreenSharing && (
+            <div className="mx-4 mt-4 aspect-video bg-black rounded-xl overflow-hidden relative">
+              <video
+                ref={screenShareRef}
+                autoPlay
+                muted
+                playsInline
+                className="w-full h-full object-contain"
+              />
+              <div className="absolute bottom-2 left-2 text-xs bg-black/70 text-white px-2 py-1 rounded">
+                You are sharing your screen
               </div>
-            </motion.div>
+            </div>
+          )}
 
-            {/* Other Participants */}
-            <AnimatePresence>
-              {otherParticipants.map((participant) => {
-                const remoteStream = remoteStreams.get(participant.odUserId);
-                const hasVideo = participant.isVideoOn && remoteStream?.getVideoTracks().length;
+          {/* Connecting State */}
+          {isConnecting && (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-muted-foreground">Connecting to meeting...</p>
+              </div>
+            </div>
+          )}
 
-                return (
-                  <motion.div
-                    key={participant.odUserId}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    className={cn(
-                      "relative aspect-video bg-muted rounded-xl flex items-center justify-center overflow-hidden",
-                      participant.isSpeaking && "ring-2 ring-online"
-                    )}
-                  >
-                    {hasVideo ? (
-                      <RemoteVideo userId={participant.odUserId} stream={remoteStream!} />
-                    ) : (
-                      <Avatar className="w-20 h-20">
-                        <AvatarFallback className="text-2xl bg-secondary">
-                          {participant.username.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
-                    <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-                      <span className="text-xs bg-black/50 text-white px-2 py-1 rounded truncate">
-                        {participant.username}
-                      </span>
-                      <div className="flex gap-1">
-                        {participant.isMuted && (
-                          <span className="bg-destructive text-destructive-foreground p-1 rounded">
-                            <MicOff className="w-3 h-3" />
-                          </span>
-                        )}
-                        {!participant.isVideoOn && (
-                          <span className="bg-muted-foreground/50 text-white p-1 rounded">
-                            <VideoOff className="w-3 h-3" />
-                          </span>
-                        )}
-                        {participant.isScreenSharing && (
-                          <span className="bg-primary text-primary-foreground p-1 rounded">
-                            <Monitor className="w-3 h-3" />
-                          </span>
-                        )}
-                      </div>
+          {/* Participants Grid */}
+          {isConnected && !isConnecting && (
+            <div className="flex-1 p-4 overflow-auto">
+              <div className={cn(
+                "grid gap-4 auto-rows-fr",
+                participants.length <= 1 && "grid-cols-1",
+                participants.length === 2 && "grid-cols-2",
+                participants.length >= 3 && participants.length <= 4 && "grid-cols-2",
+                participants.length >= 5 && "grid-cols-3"
+              )}>
+                {/* Current User */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className={cn(
+                    "relative aspect-video bg-muted rounded-xl flex items-center justify-center overflow-hidden",
+                    "ring-2 ring-primary/50"
+                  )}
+                >
+                  {isVideoOn ? (
+                    <video
+                      ref={localVideoRef}
+                      autoPlay
+                      muted
+                      playsInline
+                      className="w-full h-full object-cover mirror"
+                      style={{ transform: 'scaleX(-1)' }}
+                    />
+                  ) : (
+                    <Avatar className="w-20 h-20">
+                      <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+                        {profile?.username?.substring(0, 2).toUpperCase() || 'ME'}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                  <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
+                    <span className="text-xs bg-black/50 text-white px-2 py-1 rounded">
+                      {profile?.display_name || profile?.username || 'You'} (You)
+                    </span>
+                    <div className="flex gap-1">
+                      {isMuted && (
+                        <span className="bg-destructive text-destructive-foreground p-1 rounded">
+                          <MicOff className="w-3 h-3" />
+                        </span>
+                      )}
+                      {!isVideoOn && (
+                        <span className="bg-muted-foreground/50 text-white p-1 rounded">
+                          <VideoOff className="w-3 h-3" />
+                        </span>
+                      )}
                     </div>
-                    {participant.isSpeaking && (
+                  </div>
+                </motion.div>
+
+                {/* Other Participants */}
+                <AnimatePresence>
+                  {otherParticipants.map((participant) => {
+                    const remoteStream = remoteStreams.get(participant.odUserId);
+                    const hasVideo = participant.isVideoOn && remoteStream?.getVideoTracks().length;
+
+                    return (
                       <motion.div
-                        className="absolute inset-0 rounded-xl border-2 border-online pointer-events-none"
-                        animate={{ opacity: [0.5, 1, 0.5] }}
-                        transition={{ duration: 1, repeat: Infinity }}
-                      />
-                    )}
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
-          </div>
+                        key={participant.odUserId}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className={cn(
+                          "relative aspect-video bg-muted rounded-xl flex items-center justify-center overflow-hidden",
+                          participant.isSpeaking && "ring-2 ring-online"
+                        )}
+                      >
+                        {hasVideo ? (
+                          <RemoteVideo userId={participant.odUserId} stream={remoteStream!} />
+                        ) : (
+                          <Avatar className="w-20 h-20">
+                            <AvatarFallback className="text-2xl bg-secondary">
+                              {participant.username.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                        <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
+                          <span className="text-xs bg-black/50 text-white px-2 py-1 rounded truncate">
+                            {participant.username}
+                          </span>
+                          <div className="flex gap-1">
+                            {participant.isMuted && (
+                              <span className="bg-destructive text-destructive-foreground p-1 rounded">
+                                <MicOff className="w-3 h-3" />
+                              </span>
+                            )}
+                            {!participant.isVideoOn && (
+                              <span className="bg-muted-foreground/50 text-white p-1 rounded">
+                                <VideoOff className="w-3 h-3" />
+                              </span>
+                            )}
+                            {participant.isScreenSharing && (
+                              <span className="bg-primary text-primary-foreground p-1 rounded">
+                                <Monitor className="w-3 h-3" />
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {participant.isSpeaking && (
+                          <motion.div
+                            className="absolute inset-0 rounded-xl border-2 border-online pointer-events-none"
+                            animate={{ opacity: [0.5, 1, 0.5] }}
+                            transition={{ duration: 1, repeat: Infinity }}
+                          />
+                        )}
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Chat Panel */}
+        <AnimatePresence>
+          {isChatOpen && (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 320, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="border-l border-border bg-card flex flex-col overflow-hidden"
+            >
+              <div className="h-10 px-3 flex items-center border-b border-border shrink-0">
+                <h3 className="text-sm font-semibold">In-call Chat</h3>
+              </div>
+              <MeetingChat channelId={channelId} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Controls */}
       <div className="h-20 px-4 flex items-center justify-center gap-3 border-t border-border bg-card">
