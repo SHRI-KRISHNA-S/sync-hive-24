@@ -62,6 +62,35 @@ export type Database = {
           },
         ]
       }
+      channel_members: {
+        Row: {
+          added_at: string
+          channel_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          channel_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          channel_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_members_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channels: {
         Row: {
           created_at: string
