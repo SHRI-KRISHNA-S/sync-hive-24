@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Video, VideoOff, Mic, MicOff, PhoneOff, Monitor, MonitorOff, Settings, Maximize2, Minimize2, WifiOff } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, PhoneOff, Monitor, MonitorOff, Settings, Maximize2, Minimize2, WifiOff, Signal, SignalLow, SignalMedium, SignalHigh } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { useVoiceChat } from '@/hooks/useVoiceChat';
+import { useVoiceChat, CallQuality } from '@/hooks/useVoiceChat';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +24,7 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
     isScreenSharing,
     participants,
     error,
+    callQuality,
     joinVoice,
     leaveVoice,
     toggleMute,
@@ -113,6 +114,20 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
           <span className="text-sm text-muted-foreground">
             {participants.length} participant{participants.length !== 1 ? 's' : ''}
           </span>
+          {/* Call Quality Indicator */}
+          {callQuality && isConnected && (
+            <div className={cn(
+              "flex items-center gap-1 text-xs px-2 py-0.5 rounded-full",
+              callQuality === 'good' && "bg-primary/15 text-primary",
+              callQuality === 'fair' && "bg-accent text-accent-foreground",
+              callQuality === 'poor' && "bg-destructive/15 text-destructive",
+            )}>
+              {callQuality === 'good' && <SignalHigh className="w-3 h-3" />}
+              {callQuality === 'fair' && <SignalMedium className="w-3 h-3" />}
+              {callQuality === 'poor' && <SignalLow className="w-3 h-3" />}
+              <span className="capitalize">{callQuality}</span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={toggleFullscreen}>
