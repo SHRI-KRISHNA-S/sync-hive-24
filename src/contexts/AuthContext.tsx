@@ -8,7 +8,7 @@
    session: Session | null;
    profile: Profile | null;
    loading: boolean;
-   signUp: (email: string, password: string, username: string) => Promise<{ error: Error | null }>;
+   signUp: (email: string, password: string, username: string, fullName?: string) => Promise<{ error: Error | null }>;
    signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
    signOut: () => Promise<void>;
    updateProfile: (updates: Partial<Profile>) => Promise<void>;
@@ -73,27 +73,27 @@
      return () => subscription.unsubscribe();
    }, []);
  
-    const signUp = async (email: string, password: string, username: string) => {
-      if (!email.endsWith('@bitsathy.ac.in')) {
-        return { error: new Error('Only @bitsathy.ac.in email addresses are allowed') };
-      }
+     const signUp = async (email: string, password: string, username: string, fullName?: string) => {
+       if (!email.endsWith('@bitsathy.ac.in')) {
+         return { error: new Error('Only @bitsathy.ac.in email addresses are allowed') };
+       }
 
-      const redirectUrl = `${window.location.origin}/`;
-      
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            username,
-            display_name: username,
-          },
-        },
-      });
-      
-      return { error: error as Error | null };
-    };
+       const redirectUrl = `${window.location.origin}/`;
+       
+       const { error } = await supabase.auth.signUp({
+         email,
+         password,
+         options: {
+           emailRedirectTo: redirectUrl,
+           data: {
+             username,
+             display_name: fullName?.trim() || username,
+           },
+         },
+       });
+       
+       return { error: error as Error | null };
+     };
  
     const signIn = async (email: string, password: string) => {
       if (!email.endsWith('@bitsathy.ac.in')) {

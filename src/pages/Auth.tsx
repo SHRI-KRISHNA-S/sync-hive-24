@@ -22,18 +22,20 @@ import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
  });
  
  const signUpSchema = signInSchema.extend({
-   username: z.string().min(3, 'Username must be at least 3 characters').max(20, 'Username must be less than 20 characters'),
- });
+    fullName: z.string().min(2, 'Name must be at least 2 characters').max(50, 'Name must be less than 50 characters'),
+    username: z.string().min(3, 'Username must be at least 3 characters').max(20, 'Username must be less than 20 characters'),
+  });
  
  export default function Auth() {
    const navigate = useNavigate();
    const { user, signIn, signUp, loading } = useAuth();
    const [isSignUp, setIsSignUp] = useState(false);
-   const [formData, setFormData] = useState({
-     email: '',
-     password: '',
-     username: '',
-  });
+    const [formData, setFormData] = useState({
+      email: '',
+      password: '',
+      username: '',
+      fullName: '',
+   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -76,7 +78,7 @@ import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
      setSubmitting(true);
  
      if (isSignUp) {
-       const { error } = await signUp(formData.email, formData.password, formData.username);
+       const { error } = await signUp(formData.email, formData.password, formData.username, formData.fullName);
        if (error) {
          if (error.message.includes('already registered')) {
            toast.error('This email is already registered. Please sign in instead.');
@@ -192,26 +194,46 @@ import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
  
              <form onSubmit={handleSubmit}>
                <CardContent className="space-y-4">
-                 {isSignUp && (
-                   <div className="space-y-2">
-                     <Label htmlFor="username">Username</Label>
-                     <div className="relative">
-                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                       <Input
-                         id="username"
-                         name="username"
-                         type="text"
-                         placeholder="johndoe"
-                         value={formData.username}
-                         onChange={handleChange}
-                         className={`pl-10 ${errors.username ? 'border-destructive' : ''}`}
-                       />
-                     </div>
-                     {errors.username && (
-                       <p className="text-xs text-destructive">{errors.username}</p>
-                     )}
-                   </div>
-                 )}
+                  {isSignUp && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="fullName">Full Name</Label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            id="fullName"
+                            name="fullName"
+                            type="text"
+                            placeholder="John Doe"
+                            value={formData.fullName}
+                            onChange={handleChange}
+                            className={`pl-10 ${errors.fullName ? 'border-destructive' : ''}`}
+                          />
+                        </div>
+                        {errors.fullName && (
+                          <p className="text-xs text-destructive">{errors.fullName}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="username">Username</Label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            id="username"
+                            name="username"
+                            type="text"
+                            placeholder="johndoe"
+                            value={formData.username}
+                            onChange={handleChange}
+                            className={`pl-10 ${errors.username ? 'border-destructive' : ''}`}
+                          />
+                        </div>
+                        {errors.username && (
+                          <p className="text-xs text-destructive">{errors.username}</p>
+                        )}
+                      </div>
+                    </>
+                  )}
  
                  <div className="space-y-2">
                    <Label htmlFor="email">Email</Label>
