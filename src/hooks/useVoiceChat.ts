@@ -255,6 +255,7 @@ export const useVoiceChat = (channelId: string | null) => {
       }
 
       if (pc.iceConnectionState === 'disconnected') {
+        setIsReconnecting(true);
         // Wait 3s before restarting — disconnected is often transient
         disconnectTimer = setTimeout(() => {
           if (pc.iceConnectionState === 'disconnected') {
@@ -269,6 +270,7 @@ export const useVoiceChat = (channelId: string | null) => {
       }
 
       if (pc.iceConnectionState === 'failed') {
+        setIsReconnecting(true);
         console.log(`[VoiceChat] ICE failed for ${targetUserId}, restarting ICE immediately`);
         try {
           pc.restartIce();
@@ -278,6 +280,7 @@ export const useVoiceChat = (channelId: string | null) => {
       }
 
       if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        setIsReconnecting(false);
         console.log(`[VoiceChat] *** Successfully connected to ${targetUserId}!`);
       }
     };
