@@ -205,7 +205,7 @@ Deno.serve(async (req) => {
         if (channel && targetUserId) {
           const targetUser = channel.get(targetUserId)
           if (targetUser && candidate) {
-            targetUser.candidates.push(candidate as RTCIceCandidateInit)
+            targetUser.candidates.push(candidate)
           }
         }
         
