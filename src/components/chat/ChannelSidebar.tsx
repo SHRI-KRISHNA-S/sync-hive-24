@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Hash, Plus, ChevronDown, MessageSquare, Copy, Check, Moon, Sun, Trash2, LogOut, UserMinus } from 'lucide-react';
+import { Hash, Plus, ChevronDown, MessageSquare, Copy, Check, Moon, Sun, Trash2, LogOut, UserMinus, Mail } from 'lucide-react';
 import { useTeam } from '@/contexts/TeamContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePresence } from '@/hooks/usePresence';
+import { Profile } from '@/lib/supabase-types';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
