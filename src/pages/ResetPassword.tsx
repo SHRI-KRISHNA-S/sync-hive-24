@@ -105,7 +105,7 @@ export default function ResetPassword() {
         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
           <Card className="w-full max-w-md border-0 shadow-2xl shadow-primary/5">
             <CardHeader className="text-center">
-              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-2" />
+              <CheckCircle className="w-12 h-12 text-primary mx-auto mb-2" />
               <CardTitle className="text-2xl font-bold">Password Updated</CardTitle>
               <CardDescription>Redirecting you to sign in...</CardDescription>
             </CardHeader>
