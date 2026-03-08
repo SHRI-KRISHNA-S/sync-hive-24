@@ -3,12 +3,16 @@ import { Message } from '@/lib/supabase-types';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MessageAttachments } from './AttachmentPreview';
+import { MessageReactions } from './MessageReactions';
 import { format, isToday, isYesterday } from 'date-fns';
 import { Attachment } from '@/hooks/useMessages';
+import { ReactionGroup } from '@/hooks/useReactions';
 
 interface MessageBubbleProps {
   message: Message & { attachments?: Attachment[] };
   showAvatar: boolean;
+  reactions?: ReactionGroup[];
+  onToggleReaction?: (emoji: string) => void;
 }
 
 const formatMessageTime = (dateString: string) => {
@@ -26,7 +30,7 @@ const isOnlyEmojis = (text: string) => {
   return emojiRegex.test(text) && text.trim().length <= 8;
 };
 
-export const MessageBubble = ({ message, showAvatar }: MessageBubbleProps) => {
+export const MessageBubble = ({ message, showAvatar, reactions, onToggleReaction }: MessageBubbleProps) => {
   const { user } = useAuth();
   const profile = message.profiles;
   const onlyEmojis = isOnlyEmojis(message.content);
@@ -67,6 +71,12 @@ export const MessageBubble = ({ message, showAvatar }: MessageBubbleProps) => {
         )}
         {message.attachments && message.attachments.length > 0 && (
           <MessageAttachments attachments={message.attachments} />
+        )}
+        {onToggleReaction && (
+          <MessageReactions
+            reactions={reactions || []}
+            onToggle={onToggleReaction}
+          />
         )}
       </div>
     </motion.div>
