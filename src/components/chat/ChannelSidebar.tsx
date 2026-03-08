@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePresence } from '@/hooks/usePresence';
 import { Profile } from '@/lib/supabase-types';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CreateChannelDialog } from './CreateChannelDialog';
