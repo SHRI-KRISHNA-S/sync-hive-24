@@ -6,7 +6,7 @@ const corsHeaders = {
 }
 
 // In-memory store for voice channel participants (in production, use Redis/database)
-const voiceChannels = new Map<string, Map<string, { odId: string; sdp?: string; candidates: RTCIceCandidateInit[] }>>()
+const voiceChannels = new Map<string, Map<string, { odId: string; sdp?: string; candidates: unknown[] }>>()
 
 // Rate limiting: 100 requests per minute per user
 const rateLimits = new Map<string, { count: number; resetAt: number }>()
