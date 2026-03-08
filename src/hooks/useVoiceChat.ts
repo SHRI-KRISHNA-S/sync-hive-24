@@ -626,6 +626,7 @@ export const useVoiceChat = (channelId: string | null) => {
   return {
     isConnected,
     isConnecting,
+    isReconnecting,
     isMuted,
     isVideoOn,
     isScreenSharing,
