@@ -294,8 +294,9 @@ export const useVoiceChat = (channelId: string | null) => {
         pc.close();
         // Re-initiate after a short delay
         setTimeout(() => {
-          if (isConnectedRef.current) {
-            ensurePeerConnection(targetUserId);
+          if (isConnectedRef.current && !peerConnectionsRef.current.has(targetUserId)) {
+            initiatedPeersRef.current.add(targetUserId);
+            createPeerConnection(targetUserId);
           }
         }, 1000);
       }
