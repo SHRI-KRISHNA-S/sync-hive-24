@@ -90,11 +90,17 @@ export const useVoiceChat = (channelId: string | null) => {
       realtimeChannelRef.current = null;
     }
 
+    if (statsIntervalRef.current) {
+      clearInterval(statsIntervalRef.current);
+      statsIntervalRef.current = null;
+    }
+
     setParticipants([]);
     setIsConnected(false);
     isConnectedRef.current = false;
     setIsVideoOn(false);
     setIsScreenSharing(false);
+    setCallQuality(null);
   }, []);
 
   const addPendingCandidates = async (targetUserId: string, pc: RTCPeerConnection) => {
