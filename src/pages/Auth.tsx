@@ -194,26 +194,46 @@ import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
  
              <form onSubmit={handleSubmit}>
                <CardContent className="space-y-4">
-                 {isSignUp && (
-                   <div className="space-y-2">
-                     <Label htmlFor="username">Username</Label>
-                     <div className="relative">
-                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                       <Input
-                         id="username"
-                         name="username"
-                         type="text"
-                         placeholder="johndoe"
-                         value={formData.username}
-                         onChange={handleChange}
-                         className={`pl-10 ${errors.username ? 'border-destructive' : ''}`}
-                       />
-                     </div>
-                     {errors.username && (
-                       <p className="text-xs text-destructive">{errors.username}</p>
-                     )}
-                   </div>
-                 )}
+                  {isSignUp && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="fullName">Full Name</Label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            id="fullName"
+                            name="fullName"
+                            type="text"
+                            placeholder="John Doe"
+                            value={formData.fullName}
+                            onChange={handleChange}
+                            className={`pl-10 ${errors.fullName ? 'border-destructive' : ''}`}
+                          />
+                        </div>
+                        {errors.fullName && (
+                          <p className="text-xs text-destructive">{errors.fullName}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="username">Username</Label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            id="username"
+                            name="username"
+                            type="text"
+                            placeholder="johndoe"
+                            value={formData.username}
+                            onChange={handleChange}
+                            className={`pl-10 ${errors.username ? 'border-destructive' : ''}`}
+                          />
+                        </div>
+                        {errors.username && (
+                          <p className="text-xs text-destructive">{errors.username}</p>
+                        )}
+                      </div>
+                    </>
+                  )}
  
                  <div className="space-y-2">
                    <Label htmlFor="email">Email</Label>
