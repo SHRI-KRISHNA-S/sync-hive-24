@@ -43,6 +43,7 @@ export const useVoiceChat = (channelId: string | null) => {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [participants, setParticipants] = useState<VoiceParticipant[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isReconnecting, setIsReconnecting] = useState(false);
 
   const localStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
