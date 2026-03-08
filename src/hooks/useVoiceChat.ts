@@ -241,19 +241,41 @@ export const useVoiceChat = (channelId: string | null) => {
       }
     };
 
+    // Debounce timer for disconnected state
+    let disconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
     pc.oniceconnectionstatechange = () => {
       console.log(`[VoiceChat] ICE state for ${targetUserId}: ${pc.iceConnectionState}`);
-      if (
-        pc.iceConnectionState === 'failed' ||
-        pc.iceConnectionState === 'disconnected'
-      ) {
-        console.log(`[VoiceChat] Restarting ICE for ${targetUserId}`);
+
+      // Clear any pending disconnect timer
+      if (disconnectTimer) {
+        clearTimeout(disconnectTimer);
+        disconnectTimer = null;
+      }
+
+      if (pc.iceConnectionState === 'disconnected') {
+        // Wait 3s before restarting — disconnected is often transient
+        disconnectTimer = setTimeout(() => {
+          if (pc.iceConnectionState === 'disconnected') {
+            console.log(`[VoiceChat] Still disconnected after 3s, restarting ICE for ${targetUserId}`);
+            try {
+              pc.restartIce();
+            } catch (err) {
+              console.error('[VoiceChat] restartIce error:', err);
+            }
+          }
+        }, 3000);
+      }
+
+      if (pc.iceConnectionState === 'failed') {
+        console.log(`[VoiceChat] ICE failed for ${targetUserId}, restarting ICE immediately`);
         try {
           pc.restartIce();
         } catch (err) {
           console.error('[VoiceChat] restartIce error:', err);
         }
       }
+
       if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
         console.log(`[VoiceChat] *** Successfully connected to ${targetUserId}!`);
       }
@@ -261,6 +283,23 @@ export const useVoiceChat = (channelId: string | null) => {
 
     pc.onconnectionstatechange = () => {
       console.log(`[VoiceChat] Connection state for ${targetUserId}: ${pc.connectionState}`);
+
+      // If connection fully fails, recreate the peer connection entirely
+      if (pc.connectionState === 'failed') {
+        console.log(`[VoiceChat] Connection failed for ${targetUserId}, recreating peer connection`);
+        if (disconnectTimer) clearTimeout(disconnectTimer);
+        peerConnectionsRef.current.delete(targetUserId);
+        initiatedPeersRef.current.delete(targetUserId);
+        document.getElementById(`audio-${targetUserId}`)?.remove();
+        pc.close();
+        // Re-initiate after a short delay
+        setTimeout(() => {
+          if (isConnectedRef.current && !peerConnectionsRef.current.has(targetUserId)) {
+            initiatedPeersRef.current.add(targetUserId);
+            createPeerConnection(targetUserId);
+          }
+        }, 1000);
+      }
     };
 
     return pc;
