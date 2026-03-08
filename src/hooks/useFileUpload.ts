@@ -55,12 +55,18 @@ export const useFileUpload = () => {
       return null;
     }
 
-    const { data: urlData } = supabase.storage
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
       .from('attachments')
-      .getPublicUrl(filePath);
+      .createSignedUrl(filePath, 60 * 60 * 24 * 7); // 7-day expiry
+
+    if (signedUrlError || !signedUrlData?.signedUrl) {
+      toast.error('Failed to generate file URL');
+      console.error('Signed URL error:', signedUrlError);
+      return null;
+    }
 
     const uploaded: UploadedFile = {
-      file_url: urlData.publicUrl,
+      file_url: signedUrlData.signedUrl,
       file_name: file.name,
       file_type: file.type,
       file_size: file.size,
