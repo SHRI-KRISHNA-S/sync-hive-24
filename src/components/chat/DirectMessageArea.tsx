@@ -1,8 +1,9 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Send, Smile, ArrowLeft, Paperclip, Loader2, Check, CheckCheck } from 'lucide-react';
+import { MessageSquare, Send, Smile, ArrowLeft, Paperclip, Loader2, Check, CheckCheck, SmilePlus } from 'lucide-react';
 import { useDirectMessages, DirectMessageWithAttachments } from '@/hooks/useDirectMessages';
 import { useFileUpload } from '@/hooks/useFileUpload';
+import { useReactions } from '@/hooks/useReactions';
 import { useAuth } from '@/contexts/AuthContext';
 import { Profile } from '@/lib/supabase-types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -10,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { EmojiPicker } from './EmojiPicker';
 import { AttachmentPreview, MessageAttachments } from './AttachmentPreview';
+import { MessageReactions } from './MessageReactions';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, isToday, isYesterday } from 'date-fns';
 
@@ -36,11 +38,13 @@ export const DirectMessageArea = ({ otherUser, isOnline, onBack, onMarkRead }: D
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const messageIds = useMemo(() => messages.map(m => m.id), [messages]);
+  const { getReactions, toggleReaction } = useReactions(messageIds, 'dm');
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Mark messages as read when opening/viewing conversation
   useEffect(() => {
     if (messages.length > 0 && onMarkRead) {
       onMarkRead();
@@ -166,6 +170,10 @@ export const DirectMessageArea = ({ otherUser, isOnline, onBack, onMarkRead }: D
                     {msg.attachments && msg.attachments.length > 0 && (
                       <MessageAttachments attachments={msg.attachments} />
                     )}
+                    <MessageReactions
+                      reactions={getReactions(msg.id)}
+                      onToggle={(emoji) => toggleReaction(msg.id, emoji)}
+                    />
                   </div>
                 </motion.div>
               );
