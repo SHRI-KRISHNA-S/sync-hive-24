@@ -30,11 +30,12 @@ import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
    const navigate = useNavigate();
    const { user, signIn, signUp, loading } = useAuth();
    const [isSignUp, setIsSignUp] = useState(false);
-   const [formData, setFormData] = useState({
-     email: '',
-     password: '',
-     username: '',
-  });
+    const [formData, setFormData] = useState({
+      email: '',
+      password: '',
+      username: '',
+      fullName: '',
+   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
