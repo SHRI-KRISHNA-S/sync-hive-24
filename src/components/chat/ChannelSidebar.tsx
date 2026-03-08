@@ -202,9 +202,16 @@ import {
                      {member.role === 'owner' && (
                        <span className="text-xs text-mention">👑</span>
                      )}
-                     {member.user_id !== user?.id && (
-                       <Mail className="w-3 h-3 opacity-0 group-hover:opacity-60 shrink-0" />
-                     )}
+                      {member.user_id !== user?.id && (
+                        <>
+                          {getUnreadCount && getUnreadCount(member.user_id) > 0 && (
+                            <Badge className="h-4 min-w-[16px] px-1 text-[10px] bg-destructive text-destructive-foreground">
+                              {getUnreadCount(member.user_id)}
+                            </Badge>
+                          )}
+                          <Mail className="w-3 h-3 opacity-0 group-hover:opacity-60 shrink-0" />
+                        </>
+                      )}
                      {isOwner && member.user_id !== user?.id && member.role !== 'owner' && (
                        <Button
                          variant="ghost"
