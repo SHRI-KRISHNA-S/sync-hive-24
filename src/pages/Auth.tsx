@@ -243,7 +243,7 @@ import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
                        id="email"
                        name="email"
                        type="email"
-                       placeholder="yourname@bitsathy.ac.in"
+                       placeholder="name@bitsathy.ac.in"
                        value={formData.email}
                        onChange={handleChange}
                        className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}
