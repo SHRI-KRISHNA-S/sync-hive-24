@@ -43,6 +43,7 @@ export const useVoiceChat = (channelId: string | null) => {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [participants, setParticipants] = useState<VoiceParticipant[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isReconnecting, setIsReconnecting] = useState(false);
 
   const localStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
@@ -254,6 +255,7 @@ export const useVoiceChat = (channelId: string | null) => {
       }
 
       if (pc.iceConnectionState === 'disconnected') {
+        setIsReconnecting(true);
         // Wait 3s before restarting — disconnected is often transient
         disconnectTimer = setTimeout(() => {
           if (pc.iceConnectionState === 'disconnected') {
@@ -268,6 +270,7 @@ export const useVoiceChat = (channelId: string | null) => {
       }
 
       if (pc.iceConnectionState === 'failed') {
+        setIsReconnecting(true);
         console.log(`[VoiceChat] ICE failed for ${targetUserId}, restarting ICE immediately`);
         try {
           pc.restartIce();
@@ -277,6 +280,7 @@ export const useVoiceChat = (channelId: string | null) => {
       }
 
       if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        setIsReconnecting(false);
         console.log(`[VoiceChat] *** Successfully connected to ${targetUserId}!`);
       }
     };
@@ -622,6 +626,7 @@ export const useVoiceChat = (channelId: string | null) => {
   return {
     isConnected,
     isConnecting,
+    isReconnecting,
     isMuted,
     isVideoOn,
     isScreenSharing,
