@@ -1,28 +1,32 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MessageSquare, Loader2, Calendar, Video, Hash } from 'lucide-react';
+import { MessageSquare, Loader2, Calendar, Video, Hash, Mail } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { TeamProvider, useTeam } from '@/contexts/TeamContext';
 import { TeamSidebar } from '@/components/chat/TeamSidebar';
 import { ChannelSidebar } from '@/components/chat/ChannelSidebar';
 import { ChatArea } from '@/components/chat/ChatArea';
+import { DirectMessageArea } from '@/components/chat/DirectMessageArea';
 import { MeetingRoom } from '@/components/chat/MeetingRoom';
 import { CalendarTab } from '@/components/chat/CalendarTab';
 import { Button } from '@/components/ui/button';
 import { CreateTeamDialog } from '@/components/chat/CreateTeamDialog';
 import { JoinTeamDialog } from '@/components/chat/JoinTeamDialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { usePresence } from '@/hooks/usePresence';
+import { Profile } from '@/lib/supabase-types';
 import { cn } from '@/lib/utils';
 
-type ViewTab = 'chat' | 'meeting' | 'calendar';
+type ViewTab = 'chat' | 'meeting' | 'calendar' | 'dm';
 
 const ChatContent = () => {
-  const { teams, loading, currentChannel } = useTeam();
+  const { teams, loading, currentChannel, currentTeam } = useTeam();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<ViewTab>('chat');
   const [meetingChannelId, setMeetingChannelId] = useState<string | null>(null);
+  const [dmTarget, setDmTarget] = useState<Profile | null>(null);
+  const { isUserOnline } = usePresence(currentTeam?.id || null);
 
   const handleJoinMeeting = (channelId: string) => {
     setMeetingChannelId(channelId);
@@ -31,6 +35,16 @@ const ChatContent = () => {
 
   const handleCloseMeeting = () => {
     setMeetingChannelId(null);
+    setActiveTab('chat');
+  };
+
+  const handleOpenDM = (profile: Profile) => {
+    setDmTarget(profile);
+    setActiveTab('dm');
+  };
+
+  const handleCloseDM = () => {
+    setDmTarget(null);
     setActiveTab('chat');
   };
 
@@ -76,7 +90,7 @@ const ChatContent = () => {
   return (
     <>
       <TeamSidebar />
-      <ChannelSidebar />
+      <ChannelSidebar onOpenDM={handleOpenDM} />
       
       {/* Main Content Area with Tabs */}
       <div className="flex-1 flex flex-col">
@@ -85,11 +99,21 @@ const ChatContent = () => {
           <Button
             variant={activeTab === 'chat' ? 'default' : 'ghost'}
             size="sm"
-            onClick={() => setActiveTab('chat')}
+            onClick={() => { setActiveTab('chat'); setDmTarget(null); }}
             className="gap-2"
           >
             <Hash className="w-4 h-4" />
             Chat
+          </Button>
+          <Button
+            variant={activeTab === 'dm' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTab('dm')}
+            className="gap-2"
+            disabled={!dmTarget}
+          >
+            <Mail className="w-4 h-4" />
+            DM{dmTarget ? ` — ${dmTarget.display_name || dmTarget.username}` : ''}
           </Button>
           <Button
             variant={activeTab === 'meeting' ? 'default' : 'ghost'}
@@ -119,6 +143,13 @@ const ChatContent = () => {
 
         {/* Tab Content */}
         {activeTab === 'chat' && <ChatArea />}
+        {activeTab === 'dm' && dmTarget && (
+          <DirectMessageArea
+            otherUser={dmTarget}
+            isOnline={isUserOnline(dmTarget.user_id)}
+            onBack={handleCloseDM}
+          />
+        )}
         {activeTab === 'meeting' && meetingChannelId && currentChannel && (
           <MeetingRoom
             channelId={meetingChannelId}
