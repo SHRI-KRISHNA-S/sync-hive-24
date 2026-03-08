@@ -24,7 +24,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
  
-  export const ChannelSidebar = () => {
+  interface ChannelSidebarProps {
+    onOpenDM?: (profile: Profile) => void;
+  }
+
+  export const ChannelSidebar = ({ onOpenDM }: ChannelSidebarProps) => {
     const { currentTeam, channels, currentChannel, setCurrentChannel, teamMembers, deleteTeam, leaveTeam, kickMember } = useTeam();
     const { user } = useAuth();
     const { isUserOnline } = usePresence(currentTeam?.id || null);
