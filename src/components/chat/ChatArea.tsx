@@ -1,10 +1,11 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Hash, Smile, Paperclip, Send, Loader2 } from 'lucide-react';
 import { useTeam } from '@/contexts/TeamContext';
 import { useMessages } from '@/hooks/useMessages';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { useFileUpload } from '@/hooks/useFileUpload';
+import { useReactions } from '@/hooks/useReactions';
 import { MessageBubble } from './MessageBubble';
 import { TypingIndicator } from './TypingIndicator';
 import { AttachmentPreview } from './AttachmentPreview';
@@ -22,6 +23,9 @@ export const ChatArea = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const messageIds = useMemo(() => messages.map(m => m.id), [messages]);
+  const { getReactions, toggleReaction } = useReactions(messageIds, 'message');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -80,7 +84,6 @@ export const ChatArea = () => {
 
   return (
     <div className="flex-1 flex flex-col bg-background">
-      {/* Channel Header */}
       <div className="h-14 px-4 flex items-center gap-2 border-b border-border bg-card">
         <Hash className="w-5 h-5 text-muted-foreground" />
         <h3 className="font-semibold">{currentChannel.name}</h3>
@@ -92,7 +95,6 @@ export const ChatArea = () => {
         )}
       </div>
 
-      {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
         {loading ? (
           <div className="flex items-center justify-center h-full">
@@ -111,6 +113,8 @@ export const ChatArea = () => {
                 key={message.id}
                 message={message}
                 showAvatar={index === 0 || messages[index - 1]?.user_id !== message.user_id}
+                reactions={getReactions(message.id)}
+                onToggleReaction={(emoji) => toggleReaction(message.id, emoji)}
               />
             ))}
           </AnimatePresence>
@@ -118,10 +122,8 @@ export const ChatArea = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Typing Indicator */}
       <TypingIndicator users={typingUsers} />
 
-      {/* Message Input */}
       <div className="p-4 border-t border-border bg-card">
         <AttachmentPreview files={pendingFiles} onRemove={removePendingFile} isImage={isImage} />
         <div className="flex items-end gap-2 bg-secondary rounded-lg p-2">
