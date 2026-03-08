@@ -78,7 +78,7 @@ import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
      setSubmitting(true);
  
      if (isSignUp) {
-       const { error } = await signUp(formData.email, formData.password, formData.username);
+       const { error } = await signUp(formData.email, formData.password, formData.username, formData.fullName);
        if (error) {
          if (error.message.includes('already registered')) {
            toast.error('This email is already registered. Please sign in instead.');
