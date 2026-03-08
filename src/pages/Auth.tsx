@@ -220,7 +220,7 @@ import { z } from 'zod';
                        id="email"
                        name="email"
                        type="email"
-                       placeholder="john@example.com"
+                       placeholder="yourname@bitsathy.ac.in"
                        value={formData.email}
                        onChange={handleChange}
                        className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}

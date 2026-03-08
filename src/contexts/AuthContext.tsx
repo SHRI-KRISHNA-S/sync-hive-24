@@ -95,14 +95,18 @@
       return { error: error as Error | null };
     };
  
-   const signIn = async (email: string, password: string) => {
-     const { error } = await supabase.auth.signInWithPassword({
-       email,
-       password,
-     });
-     
-     return { error: error as Error | null };
-   };
+    const signIn = async (email: string, password: string) => {
+      if (!email.endsWith('@bitsathy.ac.in')) {
+        return { error: new Error('Only @bitsathy.ac.in email addresses are allowed') };
+      }
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      return { error: error as Error | null };
+    };
  
    const signOut = async () => {
      await supabase.auth.signOut();
