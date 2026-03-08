@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
+export type CallQuality = 'good' | 'fair' | 'poor' | null;
+
 interface VoiceParticipant {
   odId: string;
   odUserId: string;
