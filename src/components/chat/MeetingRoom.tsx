@@ -24,6 +24,7 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
     isScreenSharing,
     participants,
     error,
+    callQuality,
     joinVoice,
     leaveVoice,
     toggleMute,
