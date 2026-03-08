@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MessageSquare, Loader2, Calendar, Video, Hash, Mail } from 'lucide-react';
@@ -14,7 +14,9 @@ import { Button } from '@/components/ui/button';
 import { CreateTeamDialog } from '@/components/chat/CreateTeamDialog';
 import { JoinTeamDialog } from '@/components/chat/JoinTeamDialog';
 import { usePresence } from '@/hooks/usePresence';
+import { useUnreadDMs } from '@/hooks/useUnreadDMs';
 import { Profile } from '@/lib/supabase-types';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 type ViewTab = 'chat' | 'meeting' | 'calendar' | 'dm';
@@ -27,6 +29,7 @@ const ChatContent = () => {
   const [meetingChannelId, setMeetingChannelId] = useState<string | null>(null);
   const [dmTarget, setDmTarget] = useState<Profile | null>(null);
   const { isUserOnline } = usePresence(currentTeam?.id || null);
+  const { getUnreadCount, totalUnread, markAsRead } = useUnreadDMs();
 
   const handleJoinMeeting = (channelId: string) => {
     setMeetingChannelId(channelId);
@@ -47,6 +50,12 @@ const ChatContent = () => {
     setDmTarget(null);
     setActiveTab('chat');
   };
+
+  const handleMarkRead = useCallback(() => {
+    if (dmTarget) {
+      markAsRead(dmTarget.user_id);
+    }
+  }, [dmTarget, markAsRead]);
 
   if (loading) {
     return (
@@ -90,7 +99,7 @@ const ChatContent = () => {
   return (
     <>
       <TeamSidebar />
-      <ChannelSidebar onOpenDM={handleOpenDM} />
+      <ChannelSidebar onOpenDM={handleOpenDM} getUnreadCount={getUnreadCount} />
       
       {/* Main Content Area with Tabs */}
       <div className="flex-1 flex flex-col">
@@ -109,11 +118,16 @@ const ChatContent = () => {
             variant={activeTab === 'dm' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveTab('dm')}
-            className="gap-2"
+            className="gap-2 relative"
             disabled={!dmTarget}
           >
             <Mail className="w-4 h-4" />
             DM{dmTarget ? ` — ${dmTarget.display_name || dmTarget.username}` : ''}
+            {totalUnread > 0 && activeTab !== 'dm' && (
+              <Badge className="ml-1 h-5 min-w-[20px] px-1.5 text-[10px] bg-destructive text-destructive-foreground">
+                {totalUnread}
+              </Badge>
+            )}
           </Button>
           <Button
             variant={activeTab === 'meeting' ? 'default' : 'ghost'}
@@ -148,6 +162,7 @@ const ChatContent = () => {
             otherUser={dmTarget}
             isOnline={isUserOnline(dmTarget.user_id)}
             onBack={handleCloseDM}
+            onMarkRead={handleMarkRead}
           />
         )}
         {activeTab === 'meeting' && meetingChannelId && currentChannel && (
