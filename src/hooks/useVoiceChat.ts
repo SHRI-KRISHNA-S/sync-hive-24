@@ -721,5 +721,3 @@ export const useVoiceChat = (channelId: string | null) => {
     getLocalStream,
   };
 };
-  };
-};
