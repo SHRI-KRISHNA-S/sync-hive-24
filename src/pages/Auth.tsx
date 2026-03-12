@@ -227,7 +227,8 @@ import { Separator } from '@/components/ui/separator';
                     </div>
                   </div>
 
-                    <>
+                   {isSignUp && (
+                     <>
                       <div className="space-y-2">
                         <Label htmlFor="fullName">Full Name</Label>
                         <div className="relative">
