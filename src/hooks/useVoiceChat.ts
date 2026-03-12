@@ -589,6 +589,8 @@ export const useVoiceChat = (channelId: string | null) => {
         screenStreamRef.current.getTracks().forEach(t => t.stop());
         screenStreamRef.current = null;
       }
+      // Notify UI to clear the screen share preview
+      window.dispatchEvent(new CustomEvent('local-screen-share-stopped'));
       setIsScreenSharing(false);
       isScreenSharingRef.current = false;
     } else {
@@ -607,6 +609,7 @@ export const useVoiceChat = (channelId: string | null) => {
             if (sender) connection.removeTrack(sender);
           });
           screenStreamRef.current = null;
+          window.dispatchEvent(new CustomEvent('local-screen-share-stopped'));
           setIsScreenSharing(false);
           isScreenSharingRef.current = false;
           updatePresence();
