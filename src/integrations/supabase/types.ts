@@ -411,6 +411,10 @@ export type Database = {
         Args: { _team_id: string; _user_id: string }
         Returns: Database["public"]["Enums"]["team_role"]
       }
+      is_channel_member: {
+        Args: { _channel_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_team_member: {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
