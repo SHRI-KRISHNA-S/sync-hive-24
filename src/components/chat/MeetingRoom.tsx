@@ -61,6 +61,12 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
       }
     };
 
+    const handleScreenShareStopped = () => {
+      if (screenShareRef.current) {
+        screenShareRef.current.srcObject = null;
+      }
+    };
+
     const handleRemoteVideo = (event: CustomEvent) => {
       const { targetUserId, stream } = event.detail;
       setRemoteStreams(prev => new Map(prev).set(targetUserId, stream));
@@ -68,11 +74,13 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
 
     window.addEventListener('local-video-track', handleLocalVideo as EventListener);
     window.addEventListener('local-screen-share', handleLocalScreenShare as EventListener);
+    window.addEventListener('local-screen-share-stopped', handleScreenShareStopped);
     window.addEventListener('remote-video-track', handleRemoteVideo as EventListener);
 
     return () => {
       window.removeEventListener('local-video-track', handleLocalVideo as EventListener);
       window.removeEventListener('local-screen-share', handleLocalScreenShare as EventListener);
+      window.removeEventListener('local-screen-share-stopped', handleScreenShareStopped);
       window.removeEventListener('remote-video-track', handleRemoteVideo as EventListener);
     };
   }, []);
