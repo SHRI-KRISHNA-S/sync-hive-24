@@ -10,6 +10,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
+import { lovable } from '@/integrations/lovable/index';
+import { Separator } from '@/components/ui/separator';
  
  const ALLOWED_DOMAIN = '@bitsathy.ac.in';
 
