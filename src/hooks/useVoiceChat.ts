@@ -609,6 +609,7 @@ export const useVoiceChat = (channelId: string | null) => {
             if (sender) connection.removeTrack(sender);
           });
           screenStreamRef.current = null;
+          window.dispatchEvent(new CustomEvent('local-screen-share-stopped'));
           setIsScreenSharing(false);
           isScreenSharingRef.current = false;
           updatePresence();
