@@ -200,13 +200,16 @@ import { Separator } from '@/components/ui/separator';
                     type="button"
                     variant="outline"
                     className="w-full gap-2"
-                    onClick={async () => {
-                      const { error } = await lovable.auth.signInWithOAuth("google", {
-                        redirect_uri: window.location.origin,
-                      });
-                      if (error) {
-                        toast.error(error.message || 'Failed to sign in with Google');
-                      }
+                     onClick={async () => {
+                       const { error } = await lovable.auth.signInWithOAuth("google", {
+                         redirect_uri: window.location.origin,
+                         extraParams: {
+                           hd: "bitsathy.ac.in",
+                         },
+                       });
+                       if (error) {
+                         toast.error('Please try with your @bitsathy.ac.in email');
+                       }
                     }}
                   >
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
