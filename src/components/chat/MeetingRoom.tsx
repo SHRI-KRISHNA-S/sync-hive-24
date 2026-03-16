@@ -211,20 +211,32 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
 
           {/* Participants Grid */}
           {isConnected && !isConnecting && (
-            <div className="flex-1 p-4 overflow-auto">
-              <div className={cn(
-                "grid gap-4 auto-rows-fr",
-                participants.length <= 1 && "grid-cols-1",
-                participants.length === 2 && "grid-cols-2",
-                participants.length >= 3 && participants.length <= 4 && "grid-cols-2",
-                participants.length >= 5 && "grid-cols-3"
-              )}>
+            <div className="flex-1 p-3 overflow-hidden">
+              <div
+                className="grid gap-2 w-full h-full"
+                style={{
+                  gridTemplateColumns: `repeat(${
+                    participants.length <= 1 ? 1 :
+                    participants.length <= 4 ? 2 :
+                    participants.length <= 9 ? 3 :
+                    4
+                  }, 1fr)`,
+                  gridTemplateRows: `repeat(${
+                    Math.ceil(participants.length / (
+                      participants.length <= 1 ? 1 :
+                      participants.length <= 4 ? 2 :
+                      participants.length <= 9 ? 3 :
+                      4
+                    ))
+                  }, 1fr)`,
+                }}
+              >
                 {/* Current User */}
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className={cn(
-                    "relative aspect-video bg-muted rounded-xl flex items-center justify-center overflow-hidden",
+                    "relative bg-muted rounded-xl flex items-center justify-center overflow-hidden min-h-0 min-w-0",
                     "ring-2 ring-primary/50"
                   )}
                 >
@@ -234,29 +246,36 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
                       autoPlay
                       muted
                       playsInline
-                      className="w-full h-full object-cover mirror"
+                      className="w-full h-full object-cover"
                       style={{ transform: 'scaleX(-1)' }}
                     />
                   ) : (
-                    <Avatar className="w-20 h-20">
-                      <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+                    <Avatar className={cn(
+                      participants.length <= 2 ? "w-20 h-20" :
+                      participants.length <= 6 ? "w-14 h-14" : "w-10 h-10"
+                    )}>
+                      <AvatarFallback className={cn(
+                        "bg-primary text-primary-foreground",
+                        participants.length <= 2 ? "text-2xl" :
+                        participants.length <= 6 ? "text-lg" : "text-sm"
+                      )}>
                         {profile?.username?.substring(0, 2).toUpperCase() || 'ME'}
                       </AvatarFallback>
                     </Avatar>
                   )}
-                  <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-                    <span className="text-xs bg-black/50 text-white px-2 py-1 rounded">
+                  <div className="absolute bottom-1 left-1 right-1 flex items-center justify-between">
+                    <span className="text-[10px] bg-black/50 text-white px-1.5 py-0.5 rounded truncate max-w-[70%]">
                       {profile?.display_name || profile?.username || 'You'} (You)
                     </span>
-                    <div className="flex gap-1">
+                    <div className="flex gap-0.5">
                       {isMuted && (
-                        <span className="bg-destructive text-destructive-foreground p-1 rounded">
-                          <MicOff className="w-3 h-3" />
+                        <span className="bg-destructive text-destructive-foreground p-0.5 rounded">
+                          <MicOff className="w-2.5 h-2.5" />
                         </span>
                       )}
                       {!isVideoOn && (
-                        <span className="bg-muted-foreground/50 text-white p-1 rounded">
-                          <VideoOff className="w-3 h-3" />
+                        <span className="bg-muted-foreground/50 text-white p-0.5 rounded">
+                          <VideoOff className="w-2.5 h-2.5" />
                         </span>
                       )}
                     </div>
@@ -276,37 +295,44 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.9 }}
                         className={cn(
-                          "relative aspect-video bg-muted rounded-xl flex items-center justify-center overflow-hidden",
+                          "relative bg-muted rounded-xl flex items-center justify-center overflow-hidden min-h-0 min-w-0",
                           participant.isSpeaking && "ring-2 ring-online"
                         )}
                       >
                         {hasVideo ? (
                           <RemoteVideo userId={participant.odUserId} stream={remoteStream!} />
                         ) : (
-                          <Avatar className="w-20 h-20">
-                            <AvatarFallback className="text-2xl bg-secondary">
+                          <Avatar className={cn(
+                            participants.length <= 2 ? "w-20 h-20" :
+                            participants.length <= 6 ? "w-14 h-14" : "w-10 h-10"
+                          )}>
+                            <AvatarFallback className={cn(
+                              "bg-secondary",
+                              participants.length <= 2 ? "text-2xl" :
+                              participants.length <= 6 ? "text-lg" : "text-sm"
+                            )}>
                               {participant.username.substring(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                         )}
-                        <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-                          <span className="text-xs bg-black/50 text-white px-2 py-1 rounded truncate">
+                        <div className="absolute bottom-1 left-1 right-1 flex items-center justify-between">
+                          <span className="text-[10px] bg-black/50 text-white px-1.5 py-0.5 rounded truncate max-w-[70%]">
                             {participant.username}
                           </span>
-                          <div className="flex gap-1">
+                          <div className="flex gap-0.5">
                             {participant.isMuted && (
-                              <span className="bg-destructive text-destructive-foreground p-1 rounded">
-                                <MicOff className="w-3 h-3" />
+                              <span className="bg-destructive text-destructive-foreground p-0.5 rounded">
+                                <MicOff className="w-2.5 h-2.5" />
                               </span>
                             )}
                             {!participant.isVideoOn && (
-                              <span className="bg-muted-foreground/50 text-white p-1 rounded">
-                                <VideoOff className="w-3 h-3" />
+                              <span className="bg-muted-foreground/50 text-white p-0.5 rounded">
+                                <VideoOff className="w-2.5 h-2.5" />
                               </span>
                             )}
                             {participant.isScreenSharing && (
-                              <span className="bg-primary text-primary-foreground p-1 rounded">
-                                <Monitor className="w-3 h-3" />
+                              <span className="bg-primary text-primary-foreground p-0.5 rounded">
+                                <Monitor className="w-2.5 h-2.5" />
                               </span>
                             )}
                           </div>
