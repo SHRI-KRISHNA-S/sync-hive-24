@@ -44,21 +44,32 @@
  
    useEffect(() => {
      // Set up auth state listener FIRST
-     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-       (event, session) => {
-         setSession(session);
-         setUser(session?.user ?? null);
-         
-         if (session?.user) {
-           // Defer profile fetch to avoid deadlock
-           setTimeout(() => {
-             fetchProfile(session.user.id);
-           }, 0);
-         } else {
-           setProfile(null);
-         }
-       }
-     );
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          if (session?.user) {
+            const email = session.user.email || '';
+            if (!email.endsWith('@bitsathy.ac.in')) {
+              await supabase.auth.signOut();
+              setSession(null);
+              setUser(null);
+              setProfile(null);
+              return;
+            }
+          }
+
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            // Defer profile fetch to avoid deadlock
+            setTimeout(() => {
+              fetchProfile(session.user.id);
+            }, 0);
+          } else {
+            setProfile(null);
+          }
+        }
+      );
  
      // THEN check for existing session
      supabase.auth.getSession().then(({ data: { session } }) => {
