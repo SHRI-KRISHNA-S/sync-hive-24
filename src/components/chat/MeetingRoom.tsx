@@ -216,146 +216,150 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
             </div>
           )}
 
-          {/* Participants Grid */}
           {isConnected && !isConnecting && (
             <div className="flex-1 p-3 overflow-hidden">
-              <div
-                className="grid gap-2 w-full h-full"
-                style={{
-                  gridTemplateColumns: `repeat(${
-                    participants.length <= 1 ? 1 :
-                    participants.length <= 4 ? 2 :
-                    participants.length <= 9 ? 3 :
-                    4
-                  }, 1fr)`,
-                  gridTemplateRows: `repeat(${
-                    Math.ceil(participants.length / (
+              {pinnedUserId ? (
+                /* Pinned layout: large pinned tile + sidebar of others */
+                <div className="flex gap-2 w-full h-full">
+                  {/* Pinned tile */}
+                  <div className="flex-1 min-w-0 min-h-0">
+                    {pinnedUserId === myUserId ? (
+                      <ParticipantTile
+                        isPinned
+                        onTogglePin={() => togglePin(myUserId)}
+                        participantCount={participants.length}
+                        label={`${profile?.display_name || profile?.username || 'You'} (You)`}
+                        isSelf
+                        isMuted={isMuted}
+                        isVideoOn={isVideoOn}
+                        localVideoRef={localVideoRef}
+                        avatarInitials={profile?.username?.substring(0, 2).toUpperCase() || 'ME'}
+                        avatarClassName="bg-primary text-primary-foreground"
+                      />
+                    ) : (() => {
+                      const p = otherParticipants.find(x => x.odUserId === pinnedUserId);
+                      if (!p) { setPinnedUserId(null); return null; }
+                      const rs = remoteStreams.get(p.odUserId);
+                      const hv = p.isVideoOn && rs?.getVideoTracks().length;
+                      return (
+                        <ParticipantTile
+                          isPinned
+                          onTogglePin={() => togglePin(p.odUserId)}
+                          participantCount={participants.length}
+                          label={p.username}
+                          isMuted={p.isMuted}
+                          isVideoOn={p.isVideoOn}
+                          isSpeaking={p.isSpeaking}
+                          isScreenSharing={p.isScreenSharing}
+                          hasVideo={!!hv}
+                          remoteStream={rs}
+                          remoteUserId={p.odUserId}
+                          avatarInitials={p.username.substring(0, 2).toUpperCase()}
+                          avatarClassName="bg-secondary"
+                        />
+                      );
+                    })()}
+                  </div>
+                  {/* Sidebar of unpinned participants */}
+                  {participants.length > 1 && (
+                    <div className="w-48 flex flex-col gap-2 overflow-y-auto">
+                      {pinnedUserId !== myUserId && (
+                        <ParticipantTile
+                          onTogglePin={() => togglePin(myUserId)}
+                          participantCount={participants.length}
+                          label={`${profile?.display_name || profile?.username || 'You'} (You)`}
+                          isSelf
+                          isMuted={isMuted}
+                          isVideoOn={isVideoOn}
+                          localVideoRef={localVideoRef}
+                          avatarInitials={profile?.username?.substring(0, 2).toUpperCase() || 'ME'}
+                          avatarClassName="bg-primary text-primary-foreground"
+                          small
+                        />
+                      )}
+                      {otherParticipants
+                        .filter(p => p.odUserId !== pinnedUserId)
+                        .map(participant => {
+                          const rs = remoteStreams.get(participant.odUserId);
+                          const hv = participant.isVideoOn && rs?.getVideoTracks().length;
+                          return (
+                            <ParticipantTile
+                              key={participant.odUserId}
+                              onTogglePin={() => togglePin(participant.odUserId)}
+                              participantCount={participants.length}
+                              label={participant.username}
+                              isMuted={participant.isMuted}
+                              isVideoOn={participant.isVideoOn}
+                              isSpeaking={participant.isSpeaking}
+                              isScreenSharing={participant.isScreenSharing}
+                              hasVideo={!!hv}
+                              remoteStream={rs}
+                              remoteUserId={participant.odUserId}
+                              avatarInitials={participant.username.substring(0, 2).toUpperCase()}
+                              avatarClassName="bg-secondary"
+                              small
+                            />
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Normal grid layout */
+                <div
+                  className="grid gap-2 w-full h-full"
+                  style={{
+                    gridTemplateColumns: `repeat(${
                       participants.length <= 1 ? 1 :
                       participants.length <= 4 ? 2 :
-                      participants.length <= 9 ? 3 :
-                      4
-                    ))
-                  }, 1fr)`,
-                }}
-              >
-                {/* Current User */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className={cn(
-                    "relative bg-muted rounded-xl flex items-center justify-center overflow-hidden min-h-0 min-w-0",
-                    "ring-2 ring-primary/50"
-                  )}
+                      participants.length <= 9 ? 3 : 4
+                    }, 1fr)`,
+                    gridTemplateRows: `repeat(${
+                      Math.ceil(participants.length / (
+                        participants.length <= 1 ? 1 :
+                        participants.length <= 4 ? 2 :
+                        participants.length <= 9 ? 3 : 4
+                      ))
+                    }, 1fr)`,
+                  }}
                 >
-                  {isVideoOn ? (
-                    <video
-                      ref={localVideoRef}
-                      autoPlay
-                      muted
-                      playsInline
-                      className="w-full h-full object-cover"
-                      style={{ transform: 'scaleX(-1)' }}
-                    />
-                  ) : (
-                    <Avatar className={cn(
-                      participants.length <= 2 ? "w-20 h-20" :
-                      participants.length <= 6 ? "w-14 h-14" : "w-10 h-10"
-                    )}>
-                      <AvatarFallback className={cn(
-                        "bg-primary text-primary-foreground",
-                        participants.length <= 2 ? "text-2xl" :
-                        participants.length <= 6 ? "text-lg" : "text-sm"
-                      )}>
-                        {profile?.username?.substring(0, 2).toUpperCase() || 'ME'}
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-                  <div className="absolute bottom-1 left-1 right-1 flex items-center justify-between">
-                    <span className="text-[10px] bg-black/50 text-white px-1.5 py-0.5 rounded truncate max-w-[70%]">
-                      {profile?.display_name || profile?.username || 'You'} (You)
-                    </span>
-                    <div className="flex gap-0.5">
-                      {isMuted && (
-                        <span className="bg-destructive text-destructive-foreground p-0.5 rounded">
-                          <MicOff className="w-2.5 h-2.5" />
-                        </span>
-                      )}
-                      {!isVideoOn && (
-                        <span className="bg-muted-foreground/50 text-white p-0.5 rounded">
-                          <VideoOff className="w-2.5 h-2.5" />
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-
-                {/* Other Participants */}
-                <AnimatePresence>
-                  {otherParticipants.map((participant) => {
-                    const remoteStream = remoteStreams.get(participant.odUserId);
-                    const hasVideo = participant.isVideoOn && remoteStream?.getVideoTracks().length;
-
-                    return (
-                      <motion.div
-                        key={participant.odUserId}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        className={cn(
-                          "relative bg-muted rounded-xl flex items-center justify-center overflow-hidden min-h-0 min-w-0",
-                          participant.isSpeaking && "ring-2 ring-online"
-                        )}
-                      >
-                        {hasVideo ? (
-                          <RemoteVideo userId={participant.odUserId} stream={remoteStream!} />
-                        ) : (
-                          <Avatar className={cn(
-                            participants.length <= 2 ? "w-20 h-20" :
-                            participants.length <= 6 ? "w-14 h-14" : "w-10 h-10"
-                          )}>
-                            <AvatarFallback className={cn(
-                              "bg-secondary",
-                              participants.length <= 2 ? "text-2xl" :
-                              participants.length <= 6 ? "text-lg" : "text-sm"
-                            )}>
-                              {participant.username.substring(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                        )}
-                        <div className="absolute bottom-1 left-1 right-1 flex items-center justify-between">
-                          <span className="text-[10px] bg-black/50 text-white px-1.5 py-0.5 rounded truncate max-w-[70%]">
-                            {participant.username}
-                          </span>
-                          <div className="flex gap-0.5">
-                            {participant.isMuted && (
-                              <span className="bg-destructive text-destructive-foreground p-0.5 rounded">
-                                <MicOff className="w-2.5 h-2.5" />
-                              </span>
-                            )}
-                            {!participant.isVideoOn && (
-                              <span className="bg-muted-foreground/50 text-white p-0.5 rounded">
-                                <VideoOff className="w-2.5 h-2.5" />
-                              </span>
-                            )}
-                            {participant.isScreenSharing && (
-                              <span className="bg-primary text-primary-foreground p-0.5 rounded">
-                                <Monitor className="w-2.5 h-2.5" />
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        {participant.isSpeaking && (
-                          <motion.div
-                            className="absolute inset-0 rounded-xl border-2 border-online pointer-events-none"
-                            animate={{ opacity: [0.5, 1, 0.5] }}
-                            transition={{ duration: 1, repeat: Infinity }}
-                          />
-                        )}
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              </div>
+                  <ParticipantTile
+                    onTogglePin={() => togglePin(myUserId)}
+                    participantCount={participants.length}
+                    label={`${profile?.display_name || profile?.username || 'You'} (You)`}
+                    isSelf
+                    isMuted={isMuted}
+                    isVideoOn={isVideoOn}
+                    localVideoRef={localVideoRef}
+                    avatarInitials={profile?.username?.substring(0, 2).toUpperCase() || 'ME'}
+                    avatarClassName="bg-primary text-primary-foreground"
+                  />
+                  <AnimatePresence>
+                    {otherParticipants.map(participant => {
+                      const rs = remoteStreams.get(participant.odUserId);
+                      const hv = participant.isVideoOn && rs?.getVideoTracks().length;
+                      return (
+                        <ParticipantTile
+                          key={participant.odUserId}
+                          onTogglePin={() => togglePin(participant.odUserId)}
+                          participantCount={participants.length}
+                          label={participant.username}
+                          isMuted={participant.isMuted}
+                          isVideoOn={participant.isVideoOn}
+                          isSpeaking={participant.isSpeaking}
+                          isScreenSharing={participant.isScreenSharing}
+                          hasVideo={!!hv}
+                          remoteStream={rs}
+                          remoteUserId={participant.odUserId}
+                          avatarInitials={participant.username.substring(0, 2).toUpperCase()}
+                          avatarClassName="bg-secondary"
+                          animatePresence
+                        />
+                      );
+                    })}
+                  </AnimatePresence>
+                </div>
+              )}
             </div>
           )}
         </div>
