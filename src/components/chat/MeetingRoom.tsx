@@ -428,6 +428,139 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
   );
 };
 
+// Participant tile component
+interface ParticipantTileProps {
+  isPinned?: boolean;
+  onTogglePin: () => void;
+  participantCount: number;
+  label: string;
+  isSelf?: boolean;
+  isMuted?: boolean;
+  isVideoOn?: boolean;
+  isSpeaking?: boolean;
+  isScreenSharing?: boolean;
+  hasVideo?: boolean;
+  remoteStream?: MediaStream;
+  remoteUserId?: string;
+  localVideoRef?: React.RefObject<HTMLVideoElement>;
+  avatarInitials: string;
+  avatarClassName: string;
+  small?: boolean;
+  animatePresence?: boolean;
+}
+
+const ParticipantTile = ({
+  isPinned,
+  onTogglePin,
+  participantCount,
+  label,
+  isSelf,
+  isMuted,
+  isVideoOn,
+  isSpeaking,
+  isScreenSharing,
+  hasVideo,
+  remoteStream,
+  remoteUserId,
+  localVideoRef,
+  avatarInitials,
+  avatarClassName,
+  small,
+  animatePresence,
+}: ParticipantTileProps) => {
+  const avatarSize = small ? "w-8 h-8" :
+    isPinned ? "w-24 h-24" :
+    participantCount <= 2 ? "w-20 h-20" :
+    participantCount <= 6 ? "w-14 h-14" : "w-10 h-10";
+
+  const textSize = small ? "text-xs" :
+    isPinned ? "text-3xl" :
+    participantCount <= 2 ? "text-2xl" :
+    participantCount <= 6 ? "text-lg" : "text-sm";
+
+  const content = (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={animatePresence ? { opacity: 0, scale: 0.9 } : undefined}
+      className={cn(
+        "relative bg-muted rounded-xl flex items-center justify-center overflow-hidden min-h-0 min-w-0 w-full h-full group cursor-pointer",
+        isSelf && !isPinned && "ring-2 ring-primary/50",
+        isSpeaking && "ring-2 ring-online",
+        isPinned && "ring-2 ring-accent",
+        small && "aspect-video"
+      )}
+      onClick={onTogglePin}
+    >
+      {/* Pin indicator */}
+      <div className={cn(
+        "absolute top-1 right-1 z-10 transition-opacity",
+        isPinned ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+      )}>
+        <span className="bg-background/80 text-foreground p-1 rounded-md flex items-center gap-1 text-[10px]">
+          {isPinned ? <PinOff className="w-3 h-3" /> : <Pin className="w-3 h-3" />}
+          {isPinned ? 'Unpin' : 'Pin'}
+        </span>
+      </div>
+
+      {/* Video content */}
+      {isSelf && isVideoOn && localVideoRef ? (
+        <video
+          ref={localVideoRef}
+          autoPlay
+          muted
+          playsInline
+          className="w-full h-full object-cover"
+          style={{ transform: 'scaleX(-1)' }}
+        />
+      ) : !isSelf && hasVideo && remoteStream && remoteUserId ? (
+        <RemoteVideo userId={remoteUserId} stream={remoteStream} />
+      ) : (
+        <Avatar className={avatarSize}>
+          <AvatarFallback className={cn(avatarClassName, textSize)}>
+            {avatarInitials}
+          </AvatarFallback>
+        </Avatar>
+      )}
+
+      {/* Name & status bar */}
+      <div className="absolute bottom-1 left-1 right-1 flex items-center justify-between">
+        <span className="text-[10px] bg-black/50 text-white px-1.5 py-0.5 rounded truncate max-w-[70%]">
+          {label}
+        </span>
+        <div className="flex gap-0.5">
+          {isMuted && (
+            <span className="bg-destructive text-destructive-foreground p-0.5 rounded">
+              <MicOff className="w-2.5 h-2.5" />
+            </span>
+          )}
+          {!isVideoOn && (
+            <span className="bg-muted-foreground/50 text-white p-0.5 rounded">
+              <VideoOff className="w-2.5 h-2.5" />
+            </span>
+          )}
+          {isScreenSharing && (
+            <span className="bg-primary text-primary-foreground p-0.5 rounded">
+              <Monitor className="w-2.5 h-2.5" />
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Speaking indicator */}
+      {isSpeaking && (
+        <motion.div
+          className="absolute inset-0 rounded-xl border-2 border-online pointer-events-none"
+          animate={{ opacity: [0.5, 1, 0.5] }}
+          transition={{ duration: 1, repeat: Infinity }}
+        />
+      )}
+    </motion.div>
+  );
+
+  return content;
+};
+
 // Remote video component
 const RemoteVideo = ({ userId, stream }: { userId: string; stream: MediaStream }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
