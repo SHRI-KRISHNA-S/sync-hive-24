@@ -36,9 +36,16 @@ export const MeetingRoom = ({ channelId, channelName, onClose }: MeetingRoomProp
   
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [pinnedUserId, setPinnedUserId] = useState<string | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const screenShareRef = useRef<HTMLVideoElement>(null);
+
+  const togglePin = (userId: string) => {
+    setPinnedUserId(prev => prev === userId ? null : userId);
+  };
+
+  const myUserId = profile?.user_id || '__self__';
 
   useEffect(() => {
     // Auto-join when meeting room opens
