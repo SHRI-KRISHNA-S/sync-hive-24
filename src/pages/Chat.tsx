@@ -73,12 +73,10 @@ const ChatContent = () => {
           animate={{ opacity: 1, y: 0 }}
           className="text-center max-w-md px-8"
         >
-          <div className="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <MessageSquare className="w-10 h-10 text-primary" />
-          </div>
-          <h2 className="text-2xl font-bold mb-2">Welcome to TeamFlow!</h2>
+          <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2">Setting up your workspace...</h2>
           <p className="text-muted-foreground mb-8">
-            Get started by creating a new team or joining an existing one with an invite code.
+            Your personal space is being created. If this takes too long, try creating or joining a team.
           </p>
           <div className="flex gap-4 justify-center">
             <Button onClick={() => setShowCreateDialog(true)} size="lg">
