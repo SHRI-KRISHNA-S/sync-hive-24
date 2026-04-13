@@ -53,7 +53,9 @@ export const ChannelSettingsDialog = ({ open, onOpenChange, channel }: ChannelSe
     }
 
     if (data) {
-      setCurrentChannel(data as Channel);
+      const updated = data as Channel;
+      setCurrentChannel(updated);
+      updateChannelInList(updated);
       toast.success('Channel updated!');
       onOpenChange(false);
     }
