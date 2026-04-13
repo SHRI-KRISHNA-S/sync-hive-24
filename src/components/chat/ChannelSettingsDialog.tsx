@@ -23,7 +23,7 @@ interface ChannelSettingsDialogProps {
 }
 
 export const ChannelSettingsDialog = ({ open, onOpenChange, channel }: ChannelSettingsDialogProps) => {
-  const { setCurrentChannel } = useTeam();
+  const { setCurrentChannel, updateChannelInList } = useTeam();
   const [name, setName] = useState(channel.name);
   const [isPrivate, setIsPrivate] = useState(channel.is_private);
   const [loading, setLoading] = useState(false);
