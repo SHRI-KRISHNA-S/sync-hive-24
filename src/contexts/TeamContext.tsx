@@ -12,6 +12,7 @@ interface TeamContextType {
     loading: boolean;
     setCurrentTeam: (team: Team | null) => void;
     setCurrentChannel: (channel: Channel | null) => void;
+    updateChannelInList: (channel: Channel) => void;
     createTeam: (name: string, description?: string) => Promise<Team | null>;
     joinTeam: (inviteCode: string) => Promise<boolean>;
     createChannel: (name: string, description?: string) => Promise<Channel | null>;
