@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { CreateTeamDialog } from '@/components/chat/CreateTeamDialog';
 import { JoinTeamDialog } from '@/components/chat/JoinTeamDialog';
 import { usePresence } from '@/hooks/usePresence';
+import { useNotifications } from '@/hooks/useNotifications';
 import { useUnreadDMs } from '@/hooks/useUnreadDMs';
 import { WelcomeTour } from '@/components/chat/WelcomeTour';
 import { Profile } from '@/lib/supabase-types';
@@ -31,6 +32,7 @@ const ChatContent = () => {
   const [dmTarget, setDmTarget] = useState<Profile | null>(null);
   const { isUserOnline } = usePresence(currentTeam?.id || null);
   const { getUnreadCount, totalUnread, markAsRead } = useUnreadDMs();
+  useNotifications();
 
   const handleJoinMeeting = (channelId: string) => {
     setMeetingChannelId(channelId);
