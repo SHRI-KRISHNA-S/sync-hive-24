@@ -188,6 +188,13 @@ export const ChatArea = () => {
           </Button>
         </div>
       </div>
+      {currentChannel && (
+        <ChannelSettingsDialog
+          open={showSettings}
+          onOpenChange={setShowSettings}
+          channel={currentChannel}
+        />
+      )}
     </div>
   );
 };
