@@ -12,6 +12,7 @@ interface TeamContextType {
     loading: boolean;
     setCurrentTeam: (team: Team | null) => void;
     setCurrentChannel: (channel: Channel | null) => void;
+    updateChannelInList: (channel: Channel) => void;
     createTeam: (name: string, description?: string) => Promise<Team | null>;
     joinTeam: (inviteCode: string) => Promise<boolean>;
     createChannel: (name: string, description?: string) => Promise<Channel | null>;
@@ -277,6 +278,10 @@ interface TeamContextType {
       setTeamMembers(prev => prev.filter(m => m.user_id !== userId));
       return true;
     };
+
+    const updateChannelInList = (channel: Channel) => {
+      setChannels(prev => prev.map(c => c.id === channel.id ? channel : c));
+    };
   
     return (
       <TeamContext.Provider value={{
@@ -288,13 +293,14 @@ interface TeamContextType {
         loading,
         setCurrentTeam,
         setCurrentChannel,
+        updateChannelInList,
         createTeam,
-       joinTeam,
+        joinTeam,
         createChannel,
-         deleteTeam,
-         leaveTeam,
-         kickMember,
-         refreshTeams,
+        deleteTeam,
+        leaveTeam,
+        kickMember,
+        refreshTeams,
       }}>
        {children}
      </TeamContext.Provider>

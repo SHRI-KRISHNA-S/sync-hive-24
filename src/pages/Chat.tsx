@@ -15,6 +15,7 @@ import { CreateTeamDialog } from '@/components/chat/CreateTeamDialog';
 import { JoinTeamDialog } from '@/components/chat/JoinTeamDialog';
 import { usePresence } from '@/hooks/usePresence';
 import { useUnreadDMs } from '@/hooks/useUnreadDMs';
+import { WelcomeTour } from '@/components/chat/WelcomeTour';
 import { Profile } from '@/lib/supabase-types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -96,6 +97,7 @@ const ChatContent = () => {
 
   return (
     <>
+      <WelcomeTour />
       <TeamSidebar />
       <ChannelSidebar onOpenDM={handleOpenDM} getUnreadCount={getUnreadCount} />
       
