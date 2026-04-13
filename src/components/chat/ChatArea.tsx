@@ -21,6 +21,7 @@ export const ChatArea = () => {
   const { typingUsers, startTyping, stopTyping } = useTypingIndicator(currentChannel?.id || null);
   const { uploading, pendingFiles, addPendingFile, removePendingFile, clearPendingFiles, isImage } = useFileUpload();
   const [messageText, setMessageText] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -94,6 +95,11 @@ export const ChatArea = () => {
             <span className="text-sm text-muted-foreground truncate">{currentChannel.description}</span>
           </>
         )}
+        <div className="ml-auto">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowSettings(true)}>
+            <Settings className="w-4 h-4 text-muted-foreground" />
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
