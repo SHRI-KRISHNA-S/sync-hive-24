@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Hash, Smile, Paperclip, Send, Loader2, Settings } from 'lucide-react';
+import { Hash, Smile, Paperclip, Send, Loader2, Settings, Trash2 } from 'lucide-react';
 import { useTeam } from '@/contexts/TeamContext';
 import { useMessages } from '@/hooks/useMessages';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
@@ -10,6 +10,7 @@ import { MessageBubble } from './MessageBubble';
 import { TypingIndicator } from './TypingIndicator';
 import { AttachmentPreview } from './AttachmentPreview';
 import { ChannelSettingsDialog } from './ChannelSettingsDialog';
+import { DeleteChannelDialog } from './DeleteChannelDialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { EmojiPicker } from './EmojiPicker';
@@ -22,6 +23,7 @@ export const ChatArea = () => {
   const { uploading, pendingFiles, addPendingFile, removePendingFile, clearPendingFiles, isImage } = useFileUpload();
   const [messageText, setMessageText] = useState('');
   const [showSettings, setShowSettings] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -95,9 +97,12 @@ export const ChatArea = () => {
             <span className="text-sm text-muted-foreground truncate">{currentChannel.description}</span>
           </>
         )}
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowSettings(true)}>
             <Settings className="w-4 h-4 text-muted-foreground" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground" onClick={() => setShowDelete(true)}>
+            <Trash2 className="w-4 h-4 text-muted-foreground" />
           </Button>
         </div>
       </div>
@@ -189,11 +194,18 @@ export const ChatArea = () => {
         </div>
       </div>
       {currentChannel && (
-        <ChannelSettingsDialog
-          open={showSettings}
-          onOpenChange={setShowSettings}
-          channel={currentChannel}
-        />
+        <>
+          <ChannelSettingsDialog
+            open={showSettings}
+            onOpenChange={setShowSettings}
+            channel={currentChannel}
+          />
+          <DeleteChannelDialog
+            open={showDelete}
+            onOpenChange={setShowDelete}
+            channel={currentChannel}
+          />
+        </>
       )}
     </div>
   );

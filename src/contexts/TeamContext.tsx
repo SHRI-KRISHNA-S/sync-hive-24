@@ -13,6 +13,7 @@ interface TeamContextType {
     setCurrentTeam: (team: Team | null) => void;
     setCurrentChannel: (channel: Channel | null) => void;
     updateChannelInList: (channel: Channel) => void;
+    deleteChannelFromList: (channelId: string) => void;
     createTeam: (name: string, description?: string) => Promise<Team | null>;
     joinTeam: (inviteCode: string) => Promise<boolean>;
     createChannel: (name: string, description?: string) => Promise<Channel | null>;
@@ -282,6 +283,10 @@ interface TeamContextType {
     const updateChannelInList = (channel: Channel) => {
       setChannels(prev => prev.map(c => c.id === channel.id ? channel : c));
     };
+
+    const deleteChannelFromList = (channelId: string) => {
+      setChannels(prev => prev.filter(c => c.id !== channelId));
+    };
   
     return (
       <TeamContext.Provider value={{
@@ -294,6 +299,7 @@ interface TeamContextType {
         setCurrentTeam,
         setCurrentChannel,
         updateChannelInList,
+        deleteChannelFromList,
         createTeam,
         joinTeam,
         createChannel,
