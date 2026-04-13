@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Hash, Smile, Paperclip, Send, Loader2 } from 'lucide-react';
+import { Hash, Smile, Paperclip, Send, Loader2, Settings } from 'lucide-react';
 import { useTeam } from '@/contexts/TeamContext';
 import { useMessages } from '@/hooks/useMessages';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
@@ -9,6 +9,7 @@ import { useReactions } from '@/hooks/useReactions';
 import { MessageBubble } from './MessageBubble';
 import { TypingIndicator } from './TypingIndicator';
 import { AttachmentPreview } from './AttachmentPreview';
+import { ChannelSettingsDialog } from './ChannelSettingsDialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { EmojiPicker } from './EmojiPicker';
